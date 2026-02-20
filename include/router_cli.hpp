@@ -62,7 +62,7 @@ private:
     
     //Recorre el árbol para coincidir tokens con nodos (para permitir abreviaturas)
         //Esto lo quiero implementar para que 'conf t' se entienda como 'configure terminal', como en un router real
-    const CommandNodo* match_command(const std::vector<std::string>& tokens,
+    const CommandNodo* detectar_comando(const std::vector<std::string>& tokens,
                                     std::vector<const CommandNodo*>& path,
                                     std::string& error) const;
 };

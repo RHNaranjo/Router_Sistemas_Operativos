@@ -115,3 +115,72 @@ bool ArbolComandos::ejecutar_linea(CommandContexto& contexto, const std::string&
     mensaje_error = "Comando sin implementación";
     return false;
 }
+
+//CLI del router
+RouterCLI::RouterCLI() {
+    registrar_comandos_user_exec();
+    registrar_comandos_priv_exec();
+    registrar_comandos_global_cfg();
+    registrar_comandos_if_cfg();
+    registrar_comandos_ospf_cfg();
+}
+
+CommandContexto RouterCLI::crear_contexto() const {
+    CommandContexto contexto{modo_actual};
+    return contexto;
+}
+
+const ArbolComandos& RouterCLI::obtener_arbol_de_modo(CliMode modo) const {
+    switch(modo){
+        case CliMode::USER_EXEC:
+            return arbol_user_exec;
+        case CliMode::PRIVILEGED_EXEC:
+            return arbol_priv_exec;
+        case CliMode::GLOBAL_CONFIG:
+            return arbol_global_cfg;
+        case CliMode::INTERFACE_CONFIG:
+            return arbol_if_cfg;
+        case CliMode::ROUTER_OSPF_CONFIG:
+            return arbol_ospf_cfg;
+    }
+
+    //En caso de que no se obtenga el contexto, se empieza en lo más básico
+    return arbol_user_exec;
+}
+
+std::string RouterCLI::prompt() const {
+    switch(modo_actual){
+        case CliMode::USER_EXEC:
+            return "Router>";
+        case CliMode::PRIVILEGED_EXEC:
+            return "Router#";
+        case CliMode::GLOBAL_CONFIG:
+            return "Router(config)#";
+        case CliMode::INTERFACE_CONFIG:
+            return "Router(config-if)#";
+        case CliMode::ROUTER_OSPF_CONFIG:
+            return "Router(config-router)#";
+    }
+
+    //En caso de que no se obtenga el contexto, se empieza en lo más básico
+    return "Router>";
+}
+
+void RouterCLI::run(){
+    std::string linea;
+    while(true) {
+        std::cout << prompt() << " ";
+        if(!std::getline(std::cin, linea))
+            break;
+        
+        CommandContexto contexto = crear_contexto();
+        std::string error;
+
+        const auto& arbol = obtener_arbol_de_modo(modo_actual);
+        bool ok = arbol.ejecutar_linea(contexto, linea, error);
+        if(!ok && !error.empty())
+            std::cout << "% " << error << "\n";
+    }
+}
+
+//Registro de comandos

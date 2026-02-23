@@ -91,6 +91,7 @@ private:
     ArbolComandos arbol_user_exec;
     ArbolComandos arbol_priv_exec;
     ArbolComandos arbol_global_cfg;
+    ArbolComandos arbol_line_cfg;
     ArbolComandos arbol_if_cfg;
     ArbolComandos arbol_ospf_cfg;
     

@@ -148,6 +148,9 @@ const ArbolComandos& RouterCLI::obtener_arbol_de_modo(CliMode modo) const {
         case CliMode::GLOBAL_CONFIG:
             return arbol_global_cfg;
         
+        case CliMode::LINE_CONFIG:
+            return arbol_line_cfg;
+        
         case CliMode::INTERFACE_CONFIG:
             return arbol_if_cfg;
         
@@ -248,7 +251,7 @@ void RouterCLI::registrar_comandos_user_exec(){
 
 void RouterCLI::registrar_comandos_priv_exec(){
     //Disable
-    arbol_user_exec.nuevo_comando(
+    arbol_priv_exec.nuevo_comando(
         {"disable"},
         "Volver a modo user exec.",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -257,7 +260,7 @@ void RouterCLI::registrar_comandos_priv_exec(){
     );
     
     //Configure Terminal
-    arbol_user_exec.nuevo_comando(
+    arbol_priv_exec.nuevo_comando(
         {"configure", "terminal"},
         "Entrar a modo de configuración global",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -266,7 +269,7 @@ void RouterCLI::registrar_comandos_priv_exec(){
     );
     
     //Show version
-    arbol_user_exec.nuevo_comando(
+    arbol_priv_exec.nuevo_comando(
         {"show", "version"},
         "Mostrar la versión del router",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -275,7 +278,7 @@ void RouterCLI::registrar_comandos_priv_exec(){
     );
     
     //Show running config
-    arbol_user_exec.nuevo_comando(
+    arbol_priv_exec.nuevo_comando(
         {"show", "running-config"},
         "Mostrar la configuración en ejecución",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -284,7 +287,7 @@ void RouterCLI::registrar_comandos_priv_exec(){
     );
     
     //Show startup config
-    arbol_user_exec.nuevo_comando(
+    arbol_priv_exec.nuevo_comando(
         {"show", "startup-config"},
         "Mostrar configuración de inicio",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -293,7 +296,7 @@ void RouterCLI::registrar_comandos_priv_exec(){
     );
     
     //Show ip interface brief
-    arbol_user_exec.nuevo_comando(
+    arbol_priv_exec.nuevo_comando(
         {"show", "ip", "interface", "brief"},
         "Mostrar resumen de las interfaces IP",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -302,7 +305,7 @@ void RouterCLI::registrar_comandos_priv_exec(){
     );
     
     //Show ip ospf neighbor
-    arbol_user_exec.nuevo_comando(
+    arbol_priv_exec.nuevo_comando(
         {"show", "ip", "ospf", "neighbor"},
         "Mostrar los vecinos OSPF",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -311,7 +314,7 @@ void RouterCLI::registrar_comandos_priv_exec(){
     );
     
     //Show ip ospf interface
-    arbol_user_exec.nuevo_comando(
+    arbol_priv_exec.nuevo_comando(
         {"show", "ip", "ospf", "interface"},
         "Mostrar las interfaces de OSPF",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -320,7 +323,7 @@ void RouterCLI::registrar_comandos_priv_exec(){
     );
     
     //Show ip route
-    arbol_user_exec.nuevo_comando(
+    arbol_priv_exec.nuevo_comando(
         {"show", "ip", "route"},
         "Mostrar la tabla de enrutamiento",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -329,7 +332,7 @@ void RouterCLI::registrar_comandos_priv_exec(){
     );
     
     //Copy running config startup config
-    arbol_user_exec.nuevo_comando(
+    arbol_priv_exec.nuevo_comando(
         {"copy", "running-config", "startup-config"},
         "Guardar la configuración actual",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -338,7 +341,7 @@ void RouterCLI::registrar_comandos_priv_exec(){
     );
     
     //Write
-    arbol_user_exec.nuevo_comando(
+    arbol_priv_exec.nuevo_comando(
         {"write"},
         "Guardar la configuración actual",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -347,7 +350,7 @@ void RouterCLI::registrar_comandos_priv_exec(){
     );
     
     //Reload
-    arbol_user_exec.nuevo_comando(
+    arbol_priv_exec.nuevo_comando(
         {"reload"},
         "Reiniciar el router",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -423,7 +426,7 @@ void RouterCLI::registrar_comandos_global_cfg(){
 
 void RouterCLI::registrar_comandos_line_cfg(){
     //Password
-    arbol_global_cfg.nuevo_comando(
+    arbol_line_cfg.nuevo_comando(
         {"password"},
         "Añadir una contraseña al router", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -432,7 +435,7 @@ void RouterCLI::registrar_comandos_line_cfg(){
     );
     
     //Login local
-    arbol_global_cfg.nuevo_comando(
+    arbol_line_cfg.nuevo_comando(
         {"login", "local"},
         "Forzar a la autenticación de usuarios", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -441,7 +444,7 @@ void RouterCLI::registrar_comandos_line_cfg(){
     );
     
     //Exit
-    arbol_global_cfg.nuevo_comando(
+    arbol_line_cfg.nuevo_comando(
         {"exit"},
         "Regresar a modo configuración global", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -450,7 +453,7 @@ void RouterCLI::registrar_comandos_line_cfg(){
     );
     
     //End
-    arbol_global_cfg.nuevo_comando(
+    arbol_line_cfg.nuevo_comando(
         {"end"},
         "Volver al modo privilegiado",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -461,7 +464,7 @@ void RouterCLI::registrar_comandos_line_cfg(){
 
 void RouterCLI::registrar_comandos_if_cfg(){
     //Ip address
-    arbol_global_cfg.nuevo_comando(
+    arbol_if_cfg.nuevo_comando(
         {"ip", "address"},
         "Configurar dirección IP del router", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -470,7 +473,7 @@ void RouterCLI::registrar_comandos_if_cfg(){
     );
     
     //No shutdown
-    arbol_global_cfg.nuevo_comando(
+    arbol_if_cfg.nuevo_comando(
         {"no", "shutdown"},
         "Activar la interfaz", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -479,7 +482,7 @@ void RouterCLI::registrar_comandos_if_cfg(){
     );
     
     //Description
-    arbol_global_cfg.nuevo_comando(
+    arbol_if_cfg.nuevo_comando(
         {"description"},
         "Descripción de la interfaz", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -488,7 +491,7 @@ void RouterCLI::registrar_comandos_if_cfg(){
     );
     
     //Shutdown
-    arbol_global_cfg.nuevo_comando(
+    arbol_if_cfg.nuevo_comando(
         {"shutdown"},
         "Desactivar la interfaz", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -497,7 +500,7 @@ void RouterCLI::registrar_comandos_if_cfg(){
     );
     
     //Exit
-    arbol_global_cfg.nuevo_comando(
+    arbol_if_cfg.nuevo_comando(
         {"exit"},
         "Regresar a modo configuración global", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -506,7 +509,7 @@ void RouterCLI::registrar_comandos_if_cfg(){
     );
     
     //End
-    arbol_global_cfg.nuevo_comando(
+    arbol_if_cfg.nuevo_comando(
         {"end"},
         "Volver al modo privilegiado",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -517,7 +520,7 @@ void RouterCLI::registrar_comandos_if_cfg(){
 
 void RouterCLI::registrar_comandos_ospf_cfg(){
     //Network
-    arbol_global_cfg.nuevo_comando(
+    arbol_ospf_cfg.nuevo_comando(
         {"network"},
         "Regresar a modo configuración global", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -526,7 +529,7 @@ void RouterCLI::registrar_comandos_ospf_cfg(){
     );
     
     //Router-id
-    arbol_global_cfg.nuevo_comando(
+    arbol_ospf_cfg.nuevo_comando(
         {"router-id"},
         "Registrar el router-id OSPF", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -535,7 +538,7 @@ void RouterCLI::registrar_comandos_ospf_cfg(){
     );
     
     //Passive-interface
-    arbol_global_cfg.nuevo_comando(
+    arbol_ospf_cfg.nuevo_comando(
         {"passive-interface"},
         "Detener los paquetes 'hello'", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -544,7 +547,7 @@ void RouterCLI::registrar_comandos_ospf_cfg(){
     );
     
     //No passive-interface
-    arbol_global_cfg.nuevo_comando(
+    arbol_ospf_cfg.nuevo_comando(
         {"no", "passive-interface"},
         "Activa los paquetes 'hello' en la interfaz", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -553,7 +556,7 @@ void RouterCLI::registrar_comandos_ospf_cfg(){
     );
     
     //Exit
-    arbol_global_cfg.nuevo_comando(
+    arbol_ospf_cfg.nuevo_comando(
         {"exit"},
         "Regresar a modo configuración global", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
@@ -562,7 +565,7 @@ void RouterCLI::registrar_comandos_ospf_cfg(){
     );
     
     //End
-    arbol_global_cfg.nuevo_comando(
+    arbol_ospf_cfg.nuevo_comando(
         {"end"},
         "Volver al modo privilegiado",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){

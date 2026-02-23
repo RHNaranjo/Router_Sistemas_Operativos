@@ -1,6 +1,19 @@
 #include "../include/router_core.hpp"
 #include <sstream>
 
+//FUNCIONES PARA REALIZAR DESPUÉS
+InfoInterfaz* RouterCore::get_interfaz(std::string& nombre){
+    (void)nombre;
+    InfoInterfaz* interfaz;
+    return interfaz;
+}
+
+InfoRoute* RouterCore::set_route(std::string, std::string, std::string, std::string, std::string){
+    InfoRoute* route;
+    return route;
+}
+
+
 void RouterCore::init_default_state(){
     interfaces.clear();
     
@@ -76,4 +89,12 @@ void RouterCore::generar_running_config(){
     //OSPF por implementar
     oss << "!" << std::endl;
     oss << "end" << std::endl;
+}
+
+void RouterCore::actualizar_running_config(){
+    return;
+}
+
+void RouterCore::process_password(std::string, bool&){
+    return;
 }

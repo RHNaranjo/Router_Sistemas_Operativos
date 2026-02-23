@@ -2,6 +2,8 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <thread> //Para simular ping
+#include <chrono> //Para simular ping
 
 //Buscar o crear un nuevo comando
 void ArbolComandos::nuevo_comando(const std::vector<std::string>& keywords, const std::string& help, CommandHandler handler){
@@ -48,7 +50,7 @@ std::vector<std::string> ArbolComandos::tokenize(const std::string& linea){
     //Vector para guardar tokens
     std::vector<std::string> tokens;
     std::string tok;
-
+    
     //Recorre cada palabra de la frase y la añade al vector de tokens
     while(iss >> tok)
         tokens.push_back(tok);
@@ -60,18 +62,18 @@ std::vector<std::string> ArbolComandos::tokenize(const std::string& linea){
 const CommandNodo* ArbolComandos::detectar_comando(const std::vector<std::string>& tokens, std::vector<const CommandNodo*>& path, std::string& mensaje_error) const {
     //Obtener el nodo raiz
     const CommandNodo* actual = raiz.get();
-
+    
     //Recorrer los tokens para buscar qué comando es
     for(const auto& t : tokens){
         std::vector<const CommandNodo*> detectados;
-
+        
         for(const auto& hijo : actual->children) {
             if(hijo->keyword.rfind(t, 0) == 0) //Detecta si el comando comienza con esa secuencia
                 detectados.push_back(hijo.get());
             
             
         }
-
+        
         // Regresar los errores en caso de que (1) no se haya detectado nada o (2) se hayan detectado más de un posible comando
         if(detectados.empty()) {
             mensaje_error = "ERROR: Comando no reconocido: " + t;
@@ -80,7 +82,7 @@ const CommandNodo* ArbolComandos::detectar_comando(const std::vector<std::string
             mensaje_error = "ERROR: Comando ambiguo: " + t;
             return nullptr;
         }
-
+        
         actual = detectados[0];
         path.push_back(actual);
     }
@@ -96,7 +98,7 @@ bool ArbolComandos::ejecutar_linea(CommandContexto& contexto, const std::string&
     auto tokens = tokenize(linea);
     if(tokens.empty())
         return true; //La línea está vacía, pero eso no es error
-
+    
     std::vector<const CommandNodo*> path;
     
     //Detectar el comando
@@ -105,13 +107,13 @@ bool ArbolComandos::ejecutar_linea(CommandContexto& contexto, const std::string&
     //Si el comando es nullptr
     if (!comando)
         return false;
-
+    
     //Invocar al handler del comando
     if(comando->handler) {
         comando->handler(contexto, tokens);
         return true;
     }
-
+    
     mensaje_error = "ERROR: Comando sin implementación";
     return false;
 }
@@ -184,7 +186,7 @@ std::string RouterCLI::prompt() const {
 
 void RouterCLI::run(){
     std::string linea;
-    std::cout << "\n=== " << core_.hostname << " Router Sistemas Operativos ===\n";
+    std::cout << "\n=== " << core_.hostname << " Router Sistemas Operativos ===" << std::endl;
     std::cout << "Escribe 'help' para ver los comandos disponibles\n" << std::endl;
     
     while(true) {
@@ -200,12 +202,13 @@ void RouterCLI::run(){
         bool ok = arbol.ejecutar_linea(contexto, linea, error);
         
         if(!ok && !error.empty())
-            std::cout << "ERROR: " << error << "\n";
+            std::cout << "ERROR: " << error << std::endl;
     }
 }
 
+
 // ------- REGISTRO DE COMANDOS --------
-void RouterCLI::registrar_comandos_user_exec() {
+void RouterCLI::registrar_comandos_user_exec(){
     //Enable
     arbol_user_exec.nuevo_comando(
         {"enable"}, //comando
@@ -243,7 +246,7 @@ void RouterCLI::registrar_comandos_user_exec() {
     );
 }
 
-void RouterCLI::registrar_comandos_priv_exec() {
+void RouterCLI::registrar_comandos_priv_exec(){
     //Disable
     arbol_user_exec.nuevo_comando(
         {"disable"},
@@ -353,7 +356,7 @@ void RouterCLI::registrar_comandos_priv_exec() {
     );
 }
 
-void RouterCLI::registrar_comandos_global_cfg() {
+void RouterCLI::registrar_comandos_global_cfg(){
     //Hostname
     arbol_global_cfg.nuevo_comando(
         {"hostname"},
@@ -418,7 +421,7 @@ void RouterCLI::registrar_comandos_global_cfg() {
     );
 }
 
-void RouterCLI::registrar_comandos_line_cfg() {
+void RouterCLI::registrar_comandos_line_cfg(){
     //Password
     arbol_global_cfg.nuevo_comando(
         {"password"},
@@ -442,12 +445,21 @@ void RouterCLI::registrar_comandos_line_cfg() {
         {"exit"},
         "Regresar a modo configuración global", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
-            handle_exit_line(contexto, tokens);
+            handle_exit_global_specific(contexto, tokens);
+        }
+    );
+    
+    //End
+    arbol_global_cfg.nuevo_comando(
+        {"end"},
+        "Volver al modo privilegiado",
+        [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
+            handle_end(contexto, tokens);
         }
     );
 }
 
-void RouterCLI::registrar_comandos_if_cfg() {
+void RouterCLI::registrar_comandos_if_cfg(){
     //Ip address
     arbol_global_cfg.nuevo_comando(
         {"ip", "address"},
@@ -489,18 +501,27 @@ void RouterCLI::registrar_comandos_if_cfg() {
         {"exit"},
         "Regresar a modo configuración global", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
-            handle_exit_if(contexto, tokens);
+            handle_exit_global_specific(contexto, tokens);
+        }
+    );
+    
+    //End
+    arbol_global_cfg.nuevo_comando(
+        {"end"},
+        "Volver al modo privilegiado",
+        [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
+            handle_end(contexto, tokens);
         }
     );
 }
 
-void RouterCLI::registrar_comandos_ospf_cfg() {
+void RouterCLI::registrar_comandos_ospf_cfg(){
     //Network
     arbol_global_cfg.nuevo_comando(
         {"network"},
         "Regresar a modo configuración global", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
-            handle_exit_if(contexto, tokens);
+            handle_network(contexto, tokens);
         }
     );
     
@@ -536,8 +557,315 @@ void RouterCLI::registrar_comandos_ospf_cfg() {
         {"exit"},
         "Regresar a modo configuración global", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
-            handle_exit_ospf(contexto, tokens);
+            handle_exit_global_specific(contexto, tokens);
+        }
+    );
+    
+    //End
+    arbol_global_cfg.nuevo_comando(
+        {"end"},
+        "Volver al modo privilegiado",
+        [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
+            handle_end(contexto, tokens);
         }
     );
 }
 
+
+// ------- HANDLERS USER EXEC --------
+void RouterCLI::handle_enable(const CommandContexto&, const std::vector<std::string>&){
+    //Se cambia de user exec a priv exec
+    modo_actual = CliMode::PRIVILEGED_EXEC;
+}
+
+void RouterCLI::handle_exit(const CommandContexto&, const std::vector<std::string>&){
+    //Cerrando sesión
+    std::cout << "\nSaliendo del router..." << std::endl;
+    std::exit(0);
+}
+
+void RouterCLI::handle_ping(const CommandContexto&, const std::vector<std::string>& tokens){
+    //Tokens[0] == "ping"
+    //Tokens[1] == "192.168.0.1"
+    if(tokens.size() < 2) {
+        std::cout << "ERROR: no se incluyó la dirección IP\nFormato: ping <dirección ip>" << std::endl;
+        return;
+    }
+    
+    std::cout << "Pinging " << tokens[1] << " (simulación)..." << std::endl;
+    for(int i = 0; i < 4; i++){
+        std::cout << "Reply from " << tokens[1] << ": time=1ms TTL=64" << std::endl;
+        
+        //Que aparezca un output cada 0.2 segundos
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+
+}
+
+void RouterCLI::handle_help(const CommandContexto&, const std::vector<std::string>&){
+    std::cout << "\nComandos disponibles en modo actual:" << std::endl;
+    std::cout << "  enable  - Entrar a modo privilegiado" << std::endl;
+    std::cout << "  ping    - Enviar echo ICMP" << std::endl;
+    std::cout << "  exit    - Salir del router" << std::endl;
+}
+
+
+// ------- HANDLERS PRIV EXEC --------
+void RouterCLI::handle_disable(const CommandContexto&, const std::vector<std::string>&){
+    modo_actual = CliMode::USER_EXEC;
+}
+
+void RouterCLI::handle_configure_terminal(const CommandContexto&, const std::vector<std::string>&){
+    modo_actual = CliMode::GLOBAL_CONFIG;
+}
+
+void RouterCLI::handle_show_version(const CommandContexto& contexto, const std::vector<std::string>&){
+    std::cout << contexto.core->hostname << " uptime is 0 days, 0 hours" << std::endl;
+    std::cout << contexto.core->version << std::endl;
+}
+
+void RouterCLI::handle_show_running_config(const CommandContexto& contexto, const std::vector<std::string>&){
+    if(contexto.core->running_config.texto.empty())
+        contexto.core->generar_running_config();
+    
+    std::cout << "Building configuration..." << std::endl;
+    std::cout << contexto.core->running_config.texto << std::endl;
+}
+
+void RouterCLI::handle_show_startup_config(const CommandContexto& contexto, const std::vector<std::string>&){
+    if(contexto.core->startup_config.has_value()){
+        std::cout << "ERROR: No se ha configurado la startup-config" << std::endl;
+        return;
+    }
+    
+    std::cout << "Showing startup-config..." << std::endl;
+    std::cout << contexto.core->startup_config->texto << std::endl;
+}
+
+void RouterCLI::handle_show_ip_interface_brief(const CommandContexto& contexto, const std::vector<std::string>&){
+    std::string status, protocolo;
+    
+    //Headers columnas
+    std::cout << "Interface              IP-Address      OK? Method Status                Protocol" << std::endl;
+    
+    //Imprimir todas las filas
+    for (const auto& interfaz : contexto.core->interfaces){
+        //Determinar estatus de la interfaz
+        status = interfaz.up ? "up" : "administratively down";
+        
+        //Determinar protocolo de la interfaz
+        protocolo = interfaz.up ? "up" : "down";
+        
+        //Imprimir interfaz en columnas y filas fijas
+        printf("%-22s %-15s YES manual %-21s %s\n",
+            interfaz.nombre.c_str(), //Numero interfaz
+            interfaz.ip.empty() ? "unassigned" : interfaz.ip.c_str(), //Dirección IP de la interfaz
+            status.c_str(),
+            protocolo.c_str()
+        );
+    }
+}
+
+void RouterCLI::handle_show_ip_ospf_neighbor(const CommandContexto& contexto, const std::vector<std::string>&){
+    std::cout << "Neighbor ID     Pri   State            Dead Time   Address         Interface" << std::endl;
+    
+    //Imprimir cada vecino
+    for(const auto& vecino : contexto.core->ospf_neighbors){
+        printf("%-15s 1     %-16s 00:00:30    %-15s %s",
+            vecino.router_id.c_str(),
+            vecino.state.c_str(),
+            vecino.neighbor_ip.c_str(),
+            vecino.interfaz.c_str()
+        );
+    }
+}
+
+void RouterCLI::handle_show_ip_ospf_interface(const CommandContexto& contexto, const std::vector<std::string>&){
+    std::cout << "Por implementar" << std::endl;
+}
+
+void RouterCLI::handle_show_ip_route(const CommandContexto& contexto, const std::vector<std::string>&){
+    //Codigos de rutas
+    std::cout << "Codes: C - connected, O - OSPF, S - static\n" << std::endl;
+    
+    for(const auto& ruta : contexto.core->rutas){
+        std::cout << ruta.protocolo << "    "
+                << ruta.destino << "/" << ruta.netmask
+                << " via " << ruta.via << ", " << ruta.interfaz << std::endl;
+    }
+}
+
+void RouterCLI::handle_copy_running_config_startup_config(const CommandContexto& contexto, const std::vector<std::string>&){
+    if(contexto.core->running_config.texto.empty())
+        contexto.core->generar_running_config();
+    
+    contexto.core->startup_config = ConfigSnapshot{
+        contexto.core->running_config.texto
+    };
+    
+    std::cout << "Building configuration...\n" << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::cout << "[OK]" << std::endl;
+}
+
+void RouterCLI::handle_write(const CommandContexto& contexto, const std::vector<std::string>&){
+    handle_copy_running_config_startup_config(contexto, {});
+}
+
+void RouterCLI::handle_reload(const CommandContexto& contexto, const std::vector<std::string>&){
+    std::cout << "Proceed with reload? [confirm] ";
+    std::string linea;
+    std::getline(std::cin, linea);
+
+    std::cout << "\nReloading (simulación)..." << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    if(contexto.core->startup_config.has_value())
+        contexto.core->running_config = *contexto.core->startup_config;
+    else {
+        contexto.core->init_default_state();
+        contexto.core->generar_running_config();
+    }
+    std::cout << "Reload completo." << std::endl;
+}
+
+
+// ------- HANDLERS GLOBAL CONFIG --------
+void RouterCLI::handle_hostname(const CommandContexto& contexto, const std::vector<std::string>& tokens){
+    if(tokens.size() < 2){
+        std::cout << "ERROR: formato incorrecto.\nFormato: 'hostname <nombre>'";
+        return;
+    }
+    
+    contexto.core->hostname = tokens[1];
+    std::cout << "Hostname configurado: " << contexto.core->hostname << std::endl;
+}
+
+void RouterCLI::handle_enable_secret(const CommandContexto& contexto, const std::vector<std::string>&){
+    contexto.core->enable_secret = true;
+}
+
+void RouterCLI::handle_line_console_0(const CommandContexto&, const std::vector<std::string>&){
+    modo_actual = CliMode::LINE_CONFIG;
+}
+
+void RouterCLI::handle_interface(const CommandContexto&, const std::vector<std::string>& tokens){
+    if(tokens.size() < 2){
+        std::cout << "ERROR: formato incorrecto.\nFormato: interface <nombre>" << std::endl;
+        return;
+    }
+    
+    modo_actual = CliMode::INTERFACE_CONFIG;
+    interfaz = tokens[1];
+}
+
+void RouterCLI::handle_router_ospf(const CommandContexto&, const std::vector<std::string>&tokens){
+    if(tokens.size() < 3){
+        std::cout << "ERROR: formato incorrecto.\nFormato: router ospf <process-id>" << std::endl;
+        return;
+    }
+    
+    modo_actual = CliMode::ROUTER_OSPF_CONFIG;
+    ospf_process_id = tokens[2];
+}
+
+void RouterCLI::handle_exit_global(const CommandContexto&, const std::vector<std::string>&){
+    modo_actual = CliMode::PRIVILEGED_EXEC;
+}
+
+void RouterCLI::handle_end(const CommandContexto&, const std::vector<std::string>&){
+    modo_actual = CliMode::PRIVILEGED_EXEC;
+}
+
+
+void RouterCLI::handle_exit_global_specific(const CommandContexto&, const std::vector<std::string>&){
+    modo_actual = CliMode::GLOBAL_CONFIG;
+}
+
+
+// ------- HANDLERS LINE CONFIG --------
+void RouterCLI::handle_password(const CommandContexto& contexto, const std::vector<std::string>& tokens){
+    if(tokens.size() < 2){
+        std::cout << "ERROR: formato incorrecto.\nFormato: password <PWD>" << std::endl;
+        return;
+    }
+    
+    contexto.core->process_password(tokens[1], contexto.core->enable_secret);
+    contexto.core->actualizar_running_config();
+    std::cout << "Contraseña configurada." << std::endl;
+}
+
+void RouterCLI::handle_login_local(const CommandContexto&contexto, const std::vector<std::string>&){
+    contexto.core->login_local = true;
+    contexto.core->actualizar_running_config();
+}
+
+
+// ------- HANDLERS CONFIG INTERFAZ --------
+void RouterCLI::handle_ip_address(const CommandContexto& contexto, const std::vector<std::string>& tokens){
+    if(tokens.size() < 4){
+        std::cout << "ERROR: formato incorrecto.\nFormato: ip address A.B.C.D M.M.M.M" << std::endl;
+        return;
+    }
+    
+    InfoInterfaz* intf = contexto.core->get_interfaz(interfaz);
+    intf->ip = tokens[2];
+    intf->netmask = tokens[3];
+    contexto.core->actualizar_running_config();
+}
+
+void RouterCLI::handle_no_shutdown(const CommandContexto& contexto, const std::vector<std::string>&){
+    InfoInterfaz* intf = contexto.core->get_interfaz(interfaz);
+    intf->up = true;
+}
+
+void RouterCLI::handle_description(const CommandContexto& contexto, const std::vector<std::string>& tokens){
+    if(tokens.size() < 2){
+        std::cout << "ERROR: formato incorrecto.\nFormato: description <DESCRIPCION>" << std::endl;
+        return;
+    }
+    
+    //Uniendo todos los tokens para añadirlos a la descripción
+    std::string desc;
+    for(std::size_t i = 1; i < tokens.size(); i++){
+        if(i > 1){
+            desc += ' ';
+            desc += tokens[i];
+        }
+    }
+    
+    InfoInterfaz* intf = contexto.core->get_interfaz(interfaz);
+    intf->description = desc;
+}
+
+void RouterCLI::handle_shutdown(const CommandContexto& contexto, const std::vector<std::string>&){
+    InfoInterfaz* intf = contexto.core->get_interfaz(interfaz);
+    intf->up = false;
+}
+
+
+// ------- HANDLERS CONFIG OSPF --------
+void RouterCLI::handle_network(const CommandContexto&, const std::vector<std::string>& tokens){
+    if(tokens.size() < 6){
+        std::cout << "ERROR: formato incorrecto.\nFormato: network A.B.C.D W.W.W.W area N" << std::endl;
+        return;
+    }
+    
+    std::cout << "Red agregada a OSPF (simulado)\n";
+}
+
+void RouterCLI::handle_router_id(const CommandContexto&, const std::vector<std::string>& tokens){
+    if (tokens.size() < 2) {
+        std::cout << "ERROR: formato incorrecto.\nFormato: router-id A.B.C.D" << std::endl;
+        return;
+    }
+    
+    std::cout << "Router-id configurado: " << tokens[1] << " (simulado)\n";
+}
+
+void RouterCLI::handle_passive_interface(const CommandContexto&, const std::vector<std::string>&){
+    std::cout << "Comando por implementar" << std::endl;
+}
+
+void RouterCLI::handle_no_passive_interface(const CommandContexto&, const std::vector<std::string>&){
+    std::cout << "Comando por implementar" << std::endl;
+}

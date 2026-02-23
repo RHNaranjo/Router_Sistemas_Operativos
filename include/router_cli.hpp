@@ -73,30 +73,32 @@ private:
 class RouterCLI {
 public:
     RouterCLI();
-
+    
     explicit RouterCLI(RouterCore& core);
-
+    
     //Bucle
     void run();
 
 private:
     //El CLI comienza en user exec
     CliMode modo_actual = CliMode::USER_EXEC;
-
+    
     RouterCore& core_; //Referencia al core (configuración) del router
-
+    
+    std::string interfaz, ospf_process_id;
+    
     //Comandos de cada tipo de CLI
     ArbolComandos arbol_user_exec;
     ArbolComandos arbol_priv_exec;
     ArbolComandos arbol_global_cfg;
     ArbolComandos arbol_if_cfg;
     ArbolComandos arbol_ospf_cfg;
-
+    
     //Funciones helpers
     CommandContexto crear_contexto() const;
     const ArbolComandos& obtener_arbol_de_modo(CliMode modo) const;
     std::string prompt() const;
-
+    
     //Registrar comandos por modo
     void registrar_comandos_user_exec();
     void registrar_comandos_priv_exec();
@@ -104,7 +106,7 @@ private:
     void registrar_comandos_line_cfg();
     void registrar_comandos_if_cfg();
     void registrar_comandos_ospf_cfg();
-
+    
     //Handlers USER EXEC
     void handle_enable(const CommandContexto&, const std::vector<std::string>&);
     void handle_exit(const CommandContexto&, const std::vector<std::string>&);
@@ -124,7 +126,7 @@ private:
     void handle_copy_running_config_startup_config(const CommandContexto&, const std::vector<std::string>&);
     void handle_write(const CommandContexto&, const std::vector<std::string>&);
     void handle_reload(const CommandContexto&, const std::vector<std::string>&);
-
+    
     //Handlers global config
     void handle_hostname(const CommandContexto&, const std::vector<std::string>&);
     void handle_enable_secret(const CommandContexto&, const std::vector<std::string>&);
@@ -134,22 +136,21 @@ private:
     void handle_exit_global(const CommandContexto&, const std::vector<std::string>&);
     void handle_end(const CommandContexto&, const std::vector<std::string>&);
     
+    void handle_exit_global_specific(const CommandContexto&, const std::vector<std::string>&);
+    
     //Handlers line config
     void handle_password(const CommandContexto&, const std::vector<std::string>&);
     void handle_login_local(const CommandContexto&, const std::vector<std::string>&);
-    void handle_exit_line(const CommandContexto&, const std::vector<std::string>&);
-
+    
     //Handlers Config interface
     void handle_ip_address(const CommandContexto&, const std::vector<std::string>&);
     void handle_no_shutdown(const CommandContexto&, const std::vector<std::string>&);
     void handle_description(const CommandContexto&, const std::vector<std::string>&);
     void handle_shutdown(const CommandContexto&, const std::vector<std::string>&);
-    void handle_exit_if(const CommandContexto&, const std::vector<std::string>&);
-
+    
     //Handlers OSPF
     void handle_network(const CommandContexto&, const std::vector<std::string>&);
     void handle_router_id(const CommandContexto&, const std::vector<std::string>&);
     void handle_passive_interface(const CommandContexto&, const std::vector<std::string>&);
     void handle_no_passive_interface(const CommandContexto&, const std::vector<std::string>&);
-    void handle_exit_ospf(const CommandContexto&, const std::vector<std::string>&);
 };

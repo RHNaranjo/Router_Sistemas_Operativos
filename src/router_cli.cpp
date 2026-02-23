@@ -62,35 +62,50 @@ std::vector<std::string> ArbolComandos::tokenize(const std::string& linea){
 const CommandNodo* ArbolComandos::detectar_comando(const std::vector<std::string>& tokens, std::vector<const CommandNodo*>& path, std::string& mensaje_error) const {
     //Obtener el nodo raiz
     const CommandNodo* actual = raiz.get();
+    std::size_t index = 0;
     
-    //Recorrer los tokens para buscar qué comando es
-    for(const auto& t : tokens){
+    //Recorrer tokens para avanzar en árbol
+    for(; index < tokens.size(); ++index){
+        const auto& token = tokens[index];
         std::vector<const CommandNodo*> detectados;
         
-        for(const auto& hijo : actual->children) {
-            if(hijo->keyword.rfind(t, 0) == 0) //Detecta si el comando comienza con esa secuencia
+        for(const auto& hijo : actual->children)
+            if(hijo->keyword.rfind(token, 0) == 0)
                 detectados.push_back(hijo.get());
+        
+        if(detectados.empty()){
+            //Si no hay nodo hoja, hay un error de comandos
+            if(path.empty()){
+                mensaje_error = "Comando no reconocido: " + token;
+                return nullptr;
+            }
             
-            
+            //Si ya hay un comando reconocido, el resto son argumentos
+            break;
         }
         
-        // Regresar los errores en caso de que (1) no se haya detectado nada o (2) se hayan detectado más de un posible comando
-        if(detectados.empty()) {
-            mensaje_error = "ERROR: Comando no reconocido: " + t;
-            return nullptr;
-        } else if(detectados.size() > 1) {
-            mensaje_error = "ERROR: Comando ambiguo: " + t;
+        if(detectados.size() > 1){
+            mensaje_error = "Comando ambiguo: " + token;
             return nullptr;
         }
         
         actual = detectados[0];
         path.push_back(actual);
     }
-    if(!actual->es_hoja){
-        mensaje_error = "ERROR: El comando está incompleto";
+    
+    //No se reconoce comando
+    if(path.empty()){
+        mensaje_error = "Comando no reconocido";
         return nullptr;
     }
-    return actual;
+    
+    //El último nodo del path debe ser una hoja
+    if(!path.back()->es_hoja){
+        mensaje_error = "El comando está incompleto";
+        return nullptr;
+    }
+    
+    return path.back();
 }
 
 //Ejecutar el comando
@@ -330,6 +345,15 @@ void RouterCLI::registrar_comandos_priv_exec(){
             handle_show_ip_route(contexto, tokens);
         }
     );
+
+    //Exit
+    arbol_priv_exec.nuevo_comando(
+        {"exit"},
+        "Regresar a modo user exec",
+        [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
+            handle_disable(contexto, tokens);
+        }
+    );
     
     //Copy running config startup config
     arbol_priv_exec.nuevo_comando(
@@ -345,7 +369,7 @@ void RouterCLI::registrar_comandos_priv_exec(){
         {"write"},
         "Guardar la configuración actual",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
-            handle_write(contexto, tokens);
+            handle_copy_running_config_startup_config(contexto, tokens);
         }
     );
     
@@ -374,7 +398,7 @@ void RouterCLI::registrar_comandos_global_cfg(){
         {"exit"},
         "Volver al modo privilegiado",
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
-            handle_exit(contexto, tokens);
+            handle_exit_global(contexto, tokens);
         }
     );
     
@@ -709,10 +733,6 @@ void RouterCLI::handle_copy_running_config_startup_config(const CommandContexto&
     std::cout << "Building configuration...\n" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     std::cout << "[OK]" << std::endl;
-}
-
-void RouterCLI::handle_write(const CommandContexto& contexto, const std::vector<std::string>&){
-    handle_copy_running_config_startup_config(contexto, {});
 }
 
 void RouterCLI::handle_reload(const CommandContexto& contexto, const std::vector<std::string>&){

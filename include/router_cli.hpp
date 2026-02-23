@@ -125,7 +125,6 @@ private:
     void handle_show_ip_ospf_interface(const CommandContexto&, const std::vector<std::string>&);
     void handle_show_ip_route(const CommandContexto&, const std::vector<std::string>&);
     void handle_copy_running_config_startup_config(const CommandContexto&, const std::vector<std::string>&);
-    void handle_write(const CommandContexto&, const std::vector<std::string>&);
     void handle_reload(const CommandContexto&, const std::vector<std::string>&);
     
     //Handlers global config

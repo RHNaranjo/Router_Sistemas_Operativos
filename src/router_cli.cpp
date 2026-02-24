@@ -431,10 +431,10 @@ void RouterCLI::registrar_comandos_global_cfg(){
     
     //Interface
     arbol_global_cfg.nuevo_comando(
-        {"line", "console", "0"},
+        {"interface"},
         "Habilitar configuración de linea", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
-            handle_line_console_0(contexto, tokens);
+            handle_interface(contexto, tokens);
         }
     );
     

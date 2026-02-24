@@ -72,8 +72,6 @@ private:
 
 class RouterCLI {
 public:
-    RouterCLI();
-    
     explicit RouterCLI(RouterCore& core);
     
     //Bucle

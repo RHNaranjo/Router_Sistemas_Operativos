@@ -416,7 +416,7 @@ void RouterCLI::registrar_comandos_global_cfg(){
         {"enable", "secret"},
         "Habilitar hashing con MD5", //Esto se configurará después, jeje
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
-            handle_hostname(contexto, tokens);
+            handle_enable_secret(contexto, tokens);
         }
     );
     
@@ -432,7 +432,7 @@ void RouterCLI::registrar_comandos_global_cfg(){
     //Interface
     arbol_global_cfg.nuevo_comando(
         {"interface"},
-        "Habilitar configuración de linea", 
+        "Habilitar configuración de interface", 
         [this](const CommandContexto& contexto, const std::vector<std::string>& tokens){
             handle_interface(contexto, tokens);
         }

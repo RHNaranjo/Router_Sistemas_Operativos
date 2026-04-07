@@ -1,17 +1,46 @@
 #include "../include/router_core.hpp"
 #include <sstream>
 
-// FUNCIONES PARA REALIZAR DESPUÉS
-InfoInterfaz *RouterCore::get_interfaz(std::string &nombre) {
-  (void)nombre;
-  InfoInterfaz *interfaz;
-  return interfaz;
+// Buscar una interfaz por nombre, con soporte de abreviaturas Cisco
+InfoInterfaz *RouterCore::get_interfaz(const std::string &nombre) {
+  // Lambda para expandir abreviaturas comunes de interfaces Cisco
+  auto expandir_nombre = [](const std::string &n) -> std::string {
+    if (n.rfind("Gig", 0) == 0 || n.rfind("gig", 0) == 0) {
+      // Encontrar donde empieza el número (primer dígito)
+      std::size_t pos = n.find_first_of("0123456789");
+      if (pos != std::string::npos)
+        return "GigabitEthernet" + n.substr(pos);
+    }
+    if (n.rfind("Se", 0) == 0 || n.rfind("se", 0) == 0) {
+      std::size_t pos = n.find_first_of("0123456789");
+      if (pos != std::string::npos)
+        return "Serial" + n.substr(pos);
+    }
+    return n; // Sin cambios si no coincide con ninguna abreviatura
+  };
+
+  std::string nombre_expandido = expandir_nombre(nombre);
+
+  for (auto &intf : interfaces) {
+    if (intf.nombre == nombre_expandido)
+      return &intf;
+  }
+  return nullptr; // Interfaz no encontrada
 }
 
-InfoRoute *RouterCore::set_route(std::string, std::string, std::string,
-                                 std::string, std::string) {
-  InfoRoute *route;
-  return route;
+// Crear una ruta y agregarla al vector de rutas
+InfoRoute *RouterCore::set_route(std::string destino, std::string netmask,
+                                 std::string via, std::string interfaz,
+                                 std::string protocolo) {
+  InfoRoute nueva_ruta;
+  nueva_ruta.destino = std::move(destino);
+  nueva_ruta.netmask = std::move(netmask);
+  nueva_ruta.via = std::move(via);
+  nueva_ruta.interfaz = std::move(interfaz);
+  nueva_ruta.protocolo = std::move(protocolo);
+
+  rutas.push_back(std::move(nueva_ruta));
+  return &rutas.back();
 }
 
 void RouterCore::init_default_state() {
@@ -69,6 +98,19 @@ void RouterCore::generar_running_config() {
   oss << "hostname " << hostname << std::endl;
   oss << std::endl;
 
+  // Seguridad
+  if (enable_secret)
+    oss << "enable secret (hashed)" << std::endl;
+
+  if (!password.empty()) {
+    oss << "!" << std::endl;
+    oss << "line console 0" << std::endl;
+    oss << " password " << password << std::endl;
+    if (login_local)
+      oss << " login local" << std::endl;
+    oss << std::endl;
+  }
+
   // Interfaces
   for (const auto &interfaz : interfaces) {
     oss << "interface: " << interfaz.nombre << std::endl;
@@ -76,7 +118,8 @@ void RouterCore::generar_running_config() {
       oss << " description " << interfaz.description << std::endl;
 
     if (!interfaz.ip.empty())
-      oss << " ip address " << interfaz.ip << std::endl;
+      oss << " ip address " << interfaz.ip << " " << interfaz.netmask
+          << std::endl;
 
     if (interfaz.up)
       oss << " no shutdown" << std::endl;
@@ -89,8 +132,19 @@ void RouterCore::generar_running_config() {
   // OSPF por implementar
   oss << "!" << std::endl;
   oss << "end" << std::endl;
+
+  // Asignar el texto generado al running_config
+  running_config.texto = oss.str();
 }
 
-void RouterCore::actualizar_running_config() { return; }
+void RouterCore::actualizar_running_config() { generar_running_config(); }
 
-void RouterCore::process_password(std::string, bool &) { return; }
+void RouterCore::process_password(const std::string &pwd, bool hashear) {
+  if (hashear) {
+    // Por ahora se almacena con un marcador simple.
+    // En una fase posterior se puede agregar hash MD5 real.
+    password = "[hashed]" + pwd;
+  } else {
+    password = pwd;
+  }
+}

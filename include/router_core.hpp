@@ -34,7 +34,7 @@ struct ConfigSnapshot { // Para mostrar las configuraciones
 class RouterCore {
 public:
   std::string hostname = "Router";
-  std::string version = "Router Sistemas Operativos 0.1";
+  std::string version = "Router Sistemas Operativos 2.0";
 
   std::vector<InfoInterfaz> interfaces;
   std::vector<InfoOSPF> ospf_neighbors;
@@ -44,7 +44,7 @@ public:
   std::optional<ConfigSnapshot>
       startup_config; // No es obligatorio tener una startup-conflict
 
-  InfoInterfaz *get_interfaz(std::string &);
+  InfoInterfaz *get_interfaz(const std::string &nombre);
   InfoRoute *set_route(std::string destino, std::string netmask,
                        std::string via, std::string interfaz,
                        std::string protocolo);
@@ -58,5 +58,5 @@ public:
   void generar_running_config();
   void actualizar_running_config();
 
-  void process_password(std::string, bool &);
+  void process_password(const std::string &pwd, bool hashear);
 };

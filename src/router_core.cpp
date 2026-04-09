@@ -198,6 +198,7 @@ std::string RouterCore::calcular_red(const std::string &ip,
   unsigned int i1, i2, i3, i4;
   unsigned int m1, m2, m3, m4;
 
+  // Analizar las cadenas de texto para encontrar los cuatro octetos
   if (sscanf(ip.c_str(), "%u.%u.%u.%u", &i1, &i2, &i3, &i4) != 4)
     return "0.0.0.0";
   if (sscanf(mask.c_str(), "%u.%u.%u.%u", &m1, &m2, &m3, &m4) != 4)

@@ -209,7 +209,7 @@ std::string RouterCLI::prompt() const {
 void RouterCLI::run() {
   std::string linea;
   std::cout << "\n=== " << core_.hostname
-            << " Router Sistemas Operativos ===" << std::endl;
+            << " - Router Sistemas Operativos ===" << std::endl;
   std::cout << "Escribe 'help' para ver los comandos disponibles\n"
             << std::endl;
 
@@ -750,7 +750,7 @@ void RouterCLI::handle_interface(const CommandContexto &,
   interfaz = tokens[1];
 }
 
-void RouterCLI::handle_router_ospf(const CommandContexto &,
+void RouterCLI::handle_router_ospf(const CommandContexto &contexto,
                                    const std::vector<std::string> &tokens) {
   if (tokens.size() < 3) {
     std::cout << "ERROR: formato incorrecto.\nFormato: router ospf <process-id>"
@@ -760,6 +760,10 @@ void RouterCLI::handle_router_ospf(const CommandContexto &,
 
   modo_actual = CliMode::ROUTER_OSPF_CONFIG;
   ospf_process_id = tokens[2];
+
+  // Activar OSPF en el core
+  contexto.core->ospf_config.active = true;
+  contexto.core->ospf_config.process_id = ospf_process_id;
 }
 
 void RouterCLI::handle_exit_global(const CommandContexto &,
@@ -815,6 +819,7 @@ void RouterCLI::handle_ip_address(const CommandContexto &contexto,
   }
   intf->ip = tokens[2];
   intf->netmask = tokens[3];
+  contexto.core->recalcular_rutas_connected();
   contexto.core->actualizar_running_config();
 }
 
@@ -827,6 +832,8 @@ void RouterCLI::handle_no_shutdown(const CommandContexto &contexto,
     return;
   }
   intf->up = true;
+  contexto.core->recalcular_rutas_connected();
+  contexto.core->actualizar_running_config();
 }
 
 void RouterCLI::handle_description(const CommandContexto &contexto,
@@ -864,22 +871,32 @@ void RouterCLI::handle_shutdown(const CommandContexto &contexto,
     return;
   }
   intf->up = false;
+  contexto.core->recalcular_rutas_connected();
+  contexto.core->actualizar_running_config();
 }
 
 // ------- HANDLERS CONFIG OSPF --------
-void RouterCLI::handle_network(const CommandContexto &,
+void RouterCLI::handle_network(const CommandContexto &contexto,
                                const std::vector<std::string> &tokens) {
-  if (tokens.size() < 6) {
-    std::cout
-        << "ERROR: formato incorrecto.\nFormato: network A.B.C.D W.W.W.W area N"
-        << std::endl;
+  if (tokens.size() < 5) {
+    std::cout << "ERROR: formato incorrecto.\nFormato: network A.B.C.D "
+                 "W.W.W.W area N"
+              << std::endl;
     return;
   }
 
-  std::cout << "Red agregada a OSPF (simulado)\n";
+  NetworkEntry entry;
+  entry.network = tokens[1];
+  entry.wildcard = tokens[2];
+  entry.area = std::stoi(tokens[4]);
+
+  contexto.core->ospf_config.networks.push_back(entry);
+  contexto.core->actualizar_running_config();
+  std::cout << "Red " << entry.network << " agregada a OSPF area " << entry.area
+            << std::endl;
 }
 
-void RouterCLI::handle_router_id(const CommandContexto &,
+void RouterCLI::handle_router_id(const CommandContexto &contexto,
                                  const std::vector<std::string> &tokens) {
   if (tokens.size() < 2) {
     std::cout << "ERROR: formato incorrecto.\nFormato: router-id A.B.C.D"
@@ -887,7 +904,9 @@ void RouterCLI::handle_router_id(const CommandContexto &,
     return;
   }
 
-  std::cout << "Router-id configurado: " << tokens[1] << " (simulado)\n";
+  contexto.core->ospf_config.router_id = tokens[1];
+  contexto.core->actualizar_running_config();
+  std::cout << "Router-id configurado: " << tokens[1] << std::endl;
 }
 
 void RouterCLI::handle_passive_interface(const CommandContexto &,

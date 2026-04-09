@@ -89,6 +89,13 @@ void RouterCore::init_default_state() {
   // Limpiar vecinos y rutas
   ospf_neighbors.clear();
   rutas.clear();
+
+  // OSPF
+  ospf_config.active = false;
+  ospf_config.process_id = "";
+  ospf_config.router_id = "";
+  ospf_config.networks.clear();
+  ospf_config.passive_interfaces.clear();
 }
 
 void RouterCore::generar_running_config() {
@@ -129,7 +136,23 @@ void RouterCore::generar_running_config() {
     oss << std::endl;
   }
 
-  // OSPF por implementar
+  // OSPF
+  if (ospf_config.active) {
+    oss << "!" << std::endl;
+    oss << "router ospf " << ospf_config.process_id << std::endl;
+    if (!ospf_config.router_id.empty())
+      oss << " router-id " << ospf_config.router_id << std::endl;
+
+    for (const auto &net : ospf_config.networks) {
+      oss << " network " << net.network << " " << net.wildcard << " area "
+          << net.area << std::endl;
+    }
+
+    for (const auto &p_intf : ospf_config.passive_interfaces) {
+      oss << " passive-interface " << p_intf << std::endl;
+    }
+  }
+
   oss << "!" << std::endl;
   oss << "end" << std::endl;
 
@@ -147,4 +170,40 @@ void RouterCore::process_password(const std::string &pwd, bool hashear) {
   } else {
     password = pwd;
   }
+}
+
+// Lógica de descubrimiento de rutas directamente conectadas
+void RouterCore::recalcular_rutas_connected() {
+  // 1. Eliminar rutas previas de tipo "C" (Connected)
+  auto it = rutas.begin();
+  while (it != rutas.end()) {
+    if (it->protocolo == "C")
+      it = rutas.erase(it);
+    else
+      ++it;
+  }
+
+  // 2. Para cada interfaz activa con IP, calcular su red y añadir ruta
+  for (const auto &intf : interfaces) {
+    if (intf.up && !intf.ip.empty() && !intf.netmask.empty()) {
+      std::string red = calcular_red(intf.ip, intf.netmask);
+      set_route(red, intf.netmask, "directly connected", intf.nombre, "C");
+    }
+  }
+}
+
+// Utilidad para calcular la dirección de red (A.B.C.D & M.M.M.M)
+std::string RouterCore::calcular_red(const std::string &ip,
+                                     const std::string &mask) {
+  unsigned int i1, i2, i3, i4;
+  unsigned int m1, m2, m3, m4;
+
+  if (sscanf(ip.c_str(), "%u.%u.%u.%u", &i1, &i2, &i3, &i4) != 4)
+    return "0.0.0.0";
+  if (sscanf(mask.c_str(), "%u.%u.%u.%u", &m1, &m2, &m3, &m4) != 4)
+    return "0.0.0.0";
+
+  std::ostringstream oss;
+  oss << (i1 & m1) << "." << (i2 & m2) << "." << (i3 & m3) << "." << (i4 & m4);
+  return oss.str();
 }

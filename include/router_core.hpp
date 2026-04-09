@@ -19,6 +19,20 @@ struct InfoOSPF {
   std::string interfaz;
 };
 
+struct NetworkEntry {
+  std::string network;
+  std::string wildcard;
+  int area;
+};
+
+struct OSPFConfig {
+  std::string router_id;
+  std::string process_id;
+  std::vector<NetworkEntry> networks;
+  std::vector<std::string> passive_interfaces;
+  bool active = false;
+};
+
 struct InfoRoute {
   std::string destino;
   std::string netmask;
@@ -39,6 +53,7 @@ public:
   std::vector<InfoInterfaz> interfaces;
   std::vector<InfoOSPF> ospf_neighbors;
   std::vector<InfoRoute> rutas;
+  OSPFConfig ospf_config;
 
   ConfigSnapshot running_config;
   std::optional<ConfigSnapshot>
@@ -57,6 +72,10 @@ public:
   void init_default_state();
   void generar_running_config();
   void actualizar_running_config();
+  void recalcular_rutas_connected();
 
   void process_password(const std::string &pwd, bool hashear);
+
+private:
+  std::string calcular_red(const std::string &ip, const std::string &mask);
 };

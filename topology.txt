@@ -1,0 +1,8 @@
+# Archivo de Topología
+# Formato: [NombreRouter] [NombreInterfaz] [PuertoLocal] [IP_Remota] [PuertoRemoto]
+
+# Router 1
+Router1 GigabitEthernet0/0 5000 127.0.0.1 6000
+
+# Router 2
+Router2 GigabitEthernet0/0 6000 127.0.0.1 5000

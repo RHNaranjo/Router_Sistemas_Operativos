@@ -4,6 +4,9 @@
 #include <string>
 #include <vector>
 
+class NetworkEngine;
+struct SimulatedPacket;
+
 struct InfoInterfaz {
   std::string nombre;
   std::string ip;
@@ -25,7 +28,7 @@ struct NetworkEntry {
   int area;
 };
 
-struct OSPFConfig {
+struct ConfigOSPF {
   std::string router_id;
   std::string process_id;
   std::vector<NetworkEntry> networks;
@@ -53,11 +56,13 @@ public:
   std::vector<InfoInterfaz> interfaces;
   std::vector<InfoOSPF> ospf_neighbors;
   std::vector<InfoRoute> rutas;
-  OSPFConfig ospf_config;
+  ConfigOSPF ospf_config;
 
   ConfigSnapshot running_config;
   std::optional<ConfigSnapshot>
       startup_config; // No es obligatorio tener una startup-conflict
+
+  NetworkEngine *net_engine = nullptr;
 
   InfoInterfaz *get_interfaz(const std::string &nombre);
   InfoRoute *set_route(std::string destino, std::string netmask,
@@ -75,6 +80,8 @@ public:
   void recalcular_rutas_connected();
 
   void process_password(const std::string &pwd, bool hashear);
+  void handle_incoming_packet(const std::string &iface,
+                              const SimulatedPacket &pkt);
 
 private:
   std::string calcular_red(const std::string &ip, const std::string &mask);

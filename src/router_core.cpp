@@ -1,4 +1,6 @@
 #include "../include/router_core.hpp"
+#include "../include/packet.hpp"
+#include <iostream>
 #include <sstream>
 
 // Buscar una interfaz por nombre, con soporte de abreviaturas Cisco
@@ -170,6 +172,18 @@ void RouterCore::process_password(const std::string &pwd, bool hashear) {
   } else {
     password = pwd;
   }
+}
+
+void RouterCore::handle_incoming_packet(const std::string &iface,
+                                        const SimulatedPacket &pkt) {
+  // Por ahora solo logueamos la recepción
+  std::cout << "\n[Router] Paquete recibido en " << iface << ":" << std::endl;
+  std::cout << "  Origen: " << pkt.src_ip << " -> Destino: " << pkt.dst_ip
+            << std::endl;
+  std::cout << "  Protocolo: " << (int)pkt.protocol << " (1=ICMP, 89=OSPF)"
+            << std::endl;
+  std::cout << "  Logitud: " << pkt.payload_len << " bytes" << std::endl;
+  std::cout << "  TTL: " << (int)pkt.ttl << std::endl;
 }
 
 // Lógica de descubrimiento de rutas directamente conectadas

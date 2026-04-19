@@ -64,10 +64,12 @@ public:
 
   NetworkEngine *net_engine = nullptr;
 
+  static std::string expandir_nombre_interfaz(const std::string &nombre);
   InfoInterfaz *get_interfaz(const std::string &nombre);
   InfoRoute *set_route(std::string destino, std::string netmask,
                        std::string via, std::string interfaz,
                        std::string protocolo);
+  InfoRoute *find_route(const std::string &dest_ip);
 
   std::string password = "";
   bool login_local = false;

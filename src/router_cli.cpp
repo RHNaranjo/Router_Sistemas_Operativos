@@ -1,4 +1,6 @@
 #include "../include/router_cli.hpp"
+#include "../include/packet.hpp"
+#include "../include/network_engine.hpp"
 #include <chrono> //Para simular ping
 #include <iostream>
 #include <sstream>
@@ -335,6 +337,13 @@ void RouterCLI::registrar_comandos_priv_exec() {
                                   handle_show_ip_route(contexto, tokens);
                                 });
 
+  // Ping
+  arbol_priv_exec.nuevo_comando({"ping"}, "Enviar ICMP a otra dirección IP",
+                                [this](const CommandContexto &contexto,
+                                       const std::vector<std::string> &tokens) {
+                                  handle_ping(contexto, tokens);
+                                });
+
   // Exit
   arbol_priv_exec.nuevo_comando({"exit"}, "Regresar a modo user exec",
                                 [this](const CommandContexto &contexto,
@@ -563,10 +572,8 @@ void RouterCLI::handle_exit(const CommandContexto &,
   std::exit(0);
 }
 
-void RouterCLI::handle_ping(const CommandContexto &,
+void RouterCLI::handle_ping(const CommandContexto &contexto,
                             const std::vector<std::string> &tokens) {
-  // Tokens[0] == "ping"
-  // Tokens[1] == "192.168.0.1"
   if (tokens.size() < 2) {
     std::cout
         << "ERROR: no se incluyó la dirección IP\nFormato: ping <dirección ip>"
@@ -574,12 +581,44 @@ void RouterCLI::handle_ping(const CommandContexto &,
     return;
   }
 
-  std::cout << "Pinging " << tokens[1] << " (simulación)..." << std::endl;
-  for (int i = 0; i < 4; i++) {
-    std::cout << "Reply from " << tokens[1] << ": time=1ms TTL=64" << std::endl;
+  std::string dest_ip = tokens[1];
+  
+  // 1. Buscar la ruta en el núcleo
+  InfoRoute *ruta = contexto.core->find_route(dest_ip);
+  if (!ruta) {
+    std::cout << "ERROR: No hay ruta hacia " << dest_ip << std::endl;
+    return;
+  }
 
-    // Que aparezca un output cada 0.2 segundos
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  // 2. Obtener la interfaz de salida
+  InfoInterfaz *intf_salida = contexto.core->get_interfaz(ruta->interfaz);
+  if (!intf_salida || !intf_salida->up) {
+    std::cout << "ERROR: Interfaz de salida (" << ruta->interfaz << ") está caída o no existe." << std::endl;
+    return;
+  }
+
+  std::cout << "Pinging " << dest_ip << " with 32 bytes of data:" << std::endl;
+
+  // 3. Crear y enviar paquetes
+  for (int i = 0; i < 4; i++) {
+    SimulatedPacket pkt;
+    pkt.protocol = 1; // ICMP
+    std::strncpy(pkt.src_ip, intf_salida->ip.c_str(), 16);
+    std::strncpy(pkt.dst_ip, dest_ip.c_str(), 16);
+    std::strncpy(pkt.payload, "ECHO_REQUEST", 1024);
+    pkt.payload_len = std::strlen(pkt.payload);
+
+    if (contexto.core->net_engine) {
+       if (!contexto.core->net_engine->send_packet(intf_salida->nombre, pkt)) {
+           std::cout << "Request timed out (could not send)." << std::endl;
+       } else {
+           // Esperamos un poco para dar tiempo a recibir la respuesta en el otro hilo
+           std::this_thread::sleep_for(std::chrono::milliseconds(300));
+       }
+    } else {
+        std::cout << "ERROR: Motor de red no inicializado." << std::endl;
+        break;
+    }
   }
 }
 

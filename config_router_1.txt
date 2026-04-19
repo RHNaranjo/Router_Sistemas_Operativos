@@ -1,0 +1,11 @@
+[Nombre] [Interfaz] [Puerto Local] [IP Remota] [Puerto Remoto]
+ Router1   Gig0/0        5000       127.0.0.1        6000
+
+COMANDOS DE CONFIGURACIÓN
+enable
+configure terminal
+interface Gig0/0
+ip address 10.0.0.1 255.255.255.0
+no shutdown
+end
+ping 10.0.0.2

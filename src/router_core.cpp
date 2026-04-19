@@ -1,28 +1,27 @@
 #include "../include/router_core.hpp"
 #include "../include/packet.hpp"
+#include "../include/network_engine.hpp"
 #include <iostream>
 #include <sstream>
 
-// Buscar una interfaz por nombre, con soporte de abreviaturas Cisco
+// Método estático para expandir abreviaturas comunes de interfaces Cisco
+std::string RouterCore::expandir_nombre_interfaz(const std::string &nombre) {
+  if (nombre.rfind("Gig", 0) == 0 || nombre.rfind("gig", 0) == 0) {
+    std::size_t pos = nombre.find_first_of("0123456789");
+    if (pos != std::string::npos)
+      return "GigabitEthernet" + nombre.substr(pos);
+  }
+  if (nombre.rfind("Se", 0) == 0 || nombre.rfind("se", 0) == 0) {
+    std::size_t pos = nombre.find_first_of("0123456789");
+    if (pos != std::string::npos)
+      return "Serial" + nombre.substr(pos);
+  }
+  return nombre; // Sin cambios si no coincide con ninguna abreviatura
+}
+
+// Buscar una interfaz por nombre
 InfoInterfaz *RouterCore::get_interfaz(const std::string &nombre) {
-  // Lambda para expandir abreviaturas comunes de interfaces Cisco
-  auto expandir_nombre = [](const std::string &n) -> std::string {
-    if (n.rfind("Gig", 0) == 0 || n.rfind("gig", 0) == 0) {
-      // Encontrar donde empieza el número (primer dígito)
-      std::size_t pos = n.find_first_of("0123456789");
-      if (pos != std::string::npos)
-        return "GigabitEthernet" + n.substr(pos);
-    }
-    if (n.rfind("Se", 0) == 0 || n.rfind("se", 0) == 0) {
-      std::size_t pos = n.find_first_of("0123456789");
-      if (pos != std::string::npos)
-        return "Serial" + n.substr(pos);
-    }
-    return n; // Sin cambios si no coincide con ninguna abreviatura
-  };
-
-  std::string nombre_expandido = expandir_nombre(nombre);
-
+  std::string nombre_expandido = expandir_nombre_interfaz(nombre);
   for (auto &intf : interfaces) {
     if (intf.nombre == nombre_expandido)
       return &intf;
@@ -176,14 +175,50 @@ void RouterCore::process_password(const std::string &pwd, bool hashear) {
 
 void RouterCore::handle_incoming_packet(const std::string &iface,
                                         const SimulatedPacket &pkt) {
-  // Por ahora solo logueamos la recepción
-  std::cout << "\n[Router] Paquete recibido en " << iface << ":" << std::endl;
+  // 1. Detectar si el paquete es para este router
+  bool es_para_mi = false;
+  for (const auto &intf : interfaces) {
+    if (intf.up && intf.ip == pkt.dst_ip) {
+      es_para_mi = true;
+      break;
+    }
+  }
+
+  if (es_para_mi) {
+    // Si es ICMP (Ping), respondemos automáticamente (Echo Reply)
+    if (pkt.protocol == 1) {
+      if (std::string(pkt.payload).find("ECHO_REQUEST") != std::string::npos) {
+        SimulatedPacket reply;
+        reply.protocol = 1;
+        std::strncpy(reply.src_ip, pkt.dst_ip, 16);
+        std::strncpy(reply.dst_ip, pkt.src_ip, 16);
+        std::strncpy(reply.payload, "ECHO_REPLY", 1024);
+        reply.payload_len = std::strlen(reply.payload);
+
+        if (net_engine) {
+          net_engine->send_packet(iface, reply);
+        }
+      } else if (std::string(pkt.payload).find("ECHO_REPLY") != std::string::npos) {
+         std::cout << "\n[ICMP] Reply from " << pkt.src_ip << ": bytes=" << pkt.payload_len << " TTL=" << (int)pkt.ttl << std::endl;
+      }
+    }
+    return;
+  }
+
+  // 2. Si no es para mí, logueamos (en el futuro aquí iría el reenvío/forwarding)
+  std::cout << "\n[Router] Forwarding/Drop: Paquete recibido en " << iface << ":" << std::endl;
   std::cout << "  Origen: " << pkt.src_ip << " -> Destino: " << pkt.dst_ip
             << std::endl;
-  std::cout << "  Protocolo: " << (int)pkt.protocol << " (1=ICMP, 89=OSPF)"
-            << std::endl;
-  std::cout << "  Logitud: " << pkt.payload_len << " bytes" << std::endl;
-  std::cout << "  TTL: " << (int)pkt.ttl << std::endl;
+}
+
+InfoRoute *RouterCore::find_route(const std::string &dest_ip) {
+  // Búsqueda simple de ruta (Longest Prefix Match simplificado)
+  for (auto &ruta : rutas) {
+    if (calcular_red(dest_ip, ruta.netmask) == ruta.destino) {
+      return &ruta;
+    }
+  }
+  return nullptr;
 }
 
 // Lógica de descubrimiento de rutas directamente conectadas

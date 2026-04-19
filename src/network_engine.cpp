@@ -1,4 +1,5 @@
 #include "../include/network_engine.hpp"
+#include "../include/router_core.hpp"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -33,8 +34,9 @@ bool NetworkEngine::load_topology(const std::string& filename) {
         // Solo cargar si la línea corresponde a este router
         if (r_name != router_name_) continue;
 
+        std::string expanded_name = RouterCore::expandir_nombre_interfaz(if_name);
         InterfaceLink link;
-        link.interface_name = if_name;
+        link.interface_name = expanded_name;
         link.local_port = loc_port;
         link.remote_ip = rem_ip;
         link.remote_port = rem_port;
@@ -65,8 +67,8 @@ bool NetworkEngine::load_topology(const std::string& filename) {
         link.remote_addr.sin_port = htons(rem_port);
         inet_pton(AF_INET, rem_ip.c_str(), &link.remote_addr.sin_addr);
 
-        links_[if_name] = link;
-        std::cout << "[NetworkEngine] Interfaz " << if_name << " lista en puerto " << loc_port << " -> " << rem_ip << ":" << rem_port << std::endl;
+        links_[expanded_name] = link;
+        std::cout << "[NetworkEngine] Interfaz " << expanded_name << " lista en puerto " << loc_port << " -> " << rem_ip << ":" << rem_port << std::endl;
     }
 
     return !links_.empty();

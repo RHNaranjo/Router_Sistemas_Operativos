@@ -3,6 +3,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <map>
 
 class NetworkEngine;
 struct SimulatedPacket;
@@ -44,6 +45,18 @@ struct InfoRoute {
   std::string protocolo;
 };
 
+struct DHCPPool {
+  std::string nombre;
+  std::string red;
+  std::string mascara;
+  std::string gateway;
+  std::string dns;
+  std::string ip_inicio;
+  std::string ip_fin;
+  // Mapa de MAC/Nombre a IP asignada
+  std::map<std::string, std::string> asignaciones;
+};
+
 struct ConfigSnapshot { // Para mostrar las configuraciones
   std::string texto;
 };
@@ -57,6 +70,7 @@ public:
   std::vector<InfoOSPF> ospf_neighbors;
   std::vector<InfoRoute> rutas;
   ConfigOSPF ospf_config;
+  std::vector<DHCPPool> dhcp_pools;
 
   ConfigSnapshot running_config;
   std::optional<ConfigSnapshot>
@@ -87,4 +101,5 @@ public:
 
 private:
   std::string calcular_red(const std::string &ip, const std::string &mask);
+  std::string asignar_ip(DHCPPool &pool);
 };

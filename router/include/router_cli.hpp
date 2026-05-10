@@ -13,7 +13,8 @@ enum class CliMode {
   GLOBAL_CONFIG,
   LINE_CONFIG,
   INTERFACE_CONFIG,  // Interfaces
-  ROUTER_OSPF_CONFIG // OSPF
+  ROUTER_OSPF_CONFIG, // OSPF
+  DHCP_CONFIG         // DHCP
 };
 
 struct CommandContexto {
@@ -81,7 +82,7 @@ private:
 
   RouterCore &core_; // Referencia al core (configuración) del router
 
-  std::string interfaz, ospf_process_id;
+  std::string interfaz, ospf_process_id, dhcp_pool_name;
 
   // Comandos de cada tipo de CLI
   ArbolComandos arbol_user_exec;
@@ -90,6 +91,7 @@ private:
   ArbolComandos arbol_line_cfg;
   ArbolComandos arbol_if_cfg;
   ArbolComandos arbol_ospf_cfg;
+  ArbolComandos arbol_dhcp_cfg;
 
   // Funciones helpers
   CommandContexto crear_contexto() const;
@@ -103,6 +105,7 @@ private:
   void registrar_comandos_line_cfg();
   void registrar_comandos_if_cfg();
   void registrar_comandos_ospf_cfg();
+  void registrar_comandos_dhcp_cfg();
 
   // Handlers USER EXEC
   void handle_enable(const CommandContexto &, const std::vector<std::string> &);
@@ -145,6 +148,8 @@ private:
                         const std::vector<std::string> &);
   void handle_router_ospf(const CommandContexto &,
                           const std::vector<std::string> &);
+  void handle_ip_dhcp_pool(const CommandContexto &,
+                           const std::vector<std::string> &);
   void handle_exit_global(const CommandContexto &,
                           const std::vector<std::string> &);
   void handle_end(const CommandContexto &, const std::vector<std::string> &);
@@ -177,4 +182,10 @@ private:
                                 const std::vector<std::string> &);
   void handle_no_passive_interface(const CommandContexto &,
                                    const std::vector<std::string> &);
+
+  // Handlers DHCP
+  void handle_dhcp_network(const CommandContexto &,
+                           const std::vector<std::string> &);
+  void handle_dhcp_default_router(const CommandContexto &,
+                                  const std::vector<std::string> &);
 };

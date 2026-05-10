@@ -148,6 +148,7 @@ RouterCLI::RouterCLI(RouterCore &core) : core_(core) {
   registrar_comandos_line_cfg();
   registrar_comandos_if_cfg();
   registrar_comandos_ospf_cfg();
+  registrar_comandos_dhcp_cfg();
 }
 
 CommandContexto RouterCLI::crear_contexto() const {
@@ -177,6 +178,8 @@ const ArbolComandos &RouterCLI::obtener_arbol_de_modo(CliMode modo) const {
 
   case CliMode::ROUTER_OSPF_CONFIG:
     return arbol_ospf_cfg;
+  case CliMode::DHCP_CONFIG:
+    return arbol_dhcp_cfg;
   }
 
   // En caso de que no se obtenga el contexto, se empieza en lo más básico
@@ -202,6 +205,8 @@ std::string RouterCLI::prompt() const {
 
   case CliMode::ROUTER_OSPF_CONFIG:
     return core_.hostname + "(config-router)#";
+  case CliMode::DHCP_CONFIG:
+    return core_.hostname + "(config-dhcp)#";
   }
 
   // En caso de que no se obtenga el contexto, se empieza en lo más básico
@@ -432,6 +437,14 @@ void RouterCLI::registrar_comandos_global_cfg() {
       [this](const CommandContexto &contexto,
              const std::vector<std::string> &tokens) {
         handle_router_ospf(contexto, tokens);
+      });
+
+  // IP DHCP Pool
+  arbol_global_cfg.nuevo_comando(
+      {"ip", "dhcp", "pool"}, "Configurar un pool de DHCP",
+      [this](const CommandContexto &contexto,
+             const std::vector<std::string> &tokens) {
+        handle_ip_dhcp_pool(contexto, tokens);
       });
 }
 
@@ -777,7 +790,7 @@ void RouterCLI::handle_line_console_0(const CommandContexto &,
   modo_actual = CliMode::LINE_CONFIG;
 }
 
-void RouterCLI::handle_interface(const CommandContexto &,
+void RouterCLI::handle_interface(const CommandContexto &contexto,
                                  const std::vector<std::string> &tokens) {
   if (tokens.size() < 2) {
     std::cout << "ERROR: formato incorrecto.\nFormato: interface <nombre>"
@@ -785,8 +798,105 @@ void RouterCLI::handle_interface(const CommandContexto &,
     return;
   }
 
-  modo_actual = CliMode::INTERFACE_CONFIG;
-  interfaz = tokens[1];
+  std::string target = tokens[1];
+  if (contexto.core->get_interfaz(target)) {
+    modo_actual = CliMode::INTERFACE_CONFIG;
+    interfaz = target;
+  } else {
+    std::cout << "ERROR: Interfaz '" << target << "' no encontrada." << std::endl;
+  }
+}
+
+
+
+void RouterCLI::registrar_comandos_dhcp_cfg() {
+  // Network
+  arbol_dhcp_cfg.nuevo_comando({"network"}, "Configurar la red del pool",
+                               [this](const CommandContexto &contexto,
+                                      const std::vector<std::string> &tokens) {
+                                 handle_dhcp_network(contexto, tokens);
+                               });
+
+  // Default-router
+  arbol_dhcp_cfg.nuevo_comando({"default-router"}, "Configurar el gateway",
+                               [this](const CommandContexto &contexto,
+                                      const std::vector<std::string> &tokens) {
+                                 handle_dhcp_default_router(contexto, tokens);
+                               });
+
+  // Exit
+  arbol_dhcp_cfg.nuevo_comando({"exit"}, "Regresar a modo configuración global",
+                               [this](const CommandContexto &contexto,
+                                      const std::vector<std::string> &tokens) {
+                                 handle_exit_global_specific(contexto, tokens);
+                               });
+
+  // End
+  arbol_dhcp_cfg.nuevo_comando({"end"}, "Volver al modo privilegiado",
+                               [this](const CommandContexto &contexto,
+                                      const std::vector<std::string> &tokens) {
+                                 handle_end(contexto, tokens);
+                               });
+}
+
+void RouterCLI::handle_ip_dhcp_pool(const CommandContexto &contexto,
+                                   const std::vector<std::string> &tokens) {
+  if (tokens.size() < 4) {
+    std::cout << "ERROR: formato incorrecto.\nFormato: ip dhcp pool <name>" << std::endl;
+    return;
+  }
+
+  dhcp_pool_name = tokens[3];
+  
+  // Buscar si ya existe el pool, si no crearlo
+  bool existe = false;
+  for (auto &pool : contexto.core->dhcp_pools) {
+    if (pool.nombre == dhcp_pool_name) {
+      existe = true;
+      break;
+    }
+  }
+
+  if (!existe) {
+    DHCPPool nuevo;
+    nuevo.nombre = dhcp_pool_name;
+    contexto.core->dhcp_pools.push_back(nuevo);
+  }
+
+  modo_actual = CliMode::DHCP_CONFIG;
+}
+
+void RouterCLI::handle_dhcp_network(const CommandContexto &contexto,
+                                   const std::vector<std::string> &tokens) {
+  if (tokens.size() < 3) {
+    std::cout << "ERROR: formato incorrecto.\nFormato: network <ip> <mask>" << std::endl;
+    return;
+  }
+
+  for (auto &pool : contexto.core->dhcp_pools) {
+    if (pool.nombre == dhcp_pool_name) {
+      pool.red = tokens[1];
+      pool.mascara = tokens[2];
+      // Por defecto establecemos un rango basado en el ultimo octeto .10 a .50
+      pool.ip_inicio = pool.red.substr(0, pool.red.find_last_of('.') + 1) + "10";
+      pool.ip_fin = pool.red.substr(0, pool.red.find_last_of('.') + 1) + "50";
+      break;
+    }
+  }
+}
+
+void RouterCLI::handle_dhcp_default_router(const CommandContexto &contexto,
+                                           const std::vector<std::string> &tokens) {
+  if (tokens.size() < 2) {
+    std::cout << "ERROR: formato incorrecto.\nFormato: default-router <ip>" << std::endl;
+    return;
+  }
+
+  for (auto &pool : contexto.core->dhcp_pools) {
+    if (pool.nombre == dhcp_pool_name) {
+      pool.gateway = tokens[1];
+    }
+  }
 }
 
 void RouterCLI::handle_router_ospf(const CommandContexto &contexto,

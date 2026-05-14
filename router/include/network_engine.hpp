@@ -9,9 +9,7 @@
 #include <thread>
 #include <vector>
 
-/**
- * Representa un enlace físico simulado unido a una interfaz
- */
+// Representa un enlace físico simulado unido a una interfaz
 struct InterfaceLink {
   std::string interface_name;
   int local_port;
@@ -21,10 +19,8 @@ struct InterfaceLink {
   struct sockaddr_in remote_addr;
 };
 
-/**
- * Motor de red basado en sockets UDP.
- * Cada interfaz del router se asocia a un puerto UDP local y un destino remoto.
- */
+// Motor de red basado en sockets UDP.
+// Cada interfaz del router se asocia a un puerto UDP local y un destino remoto.
 class NetworkEngine {
 public:
   using PacketCallback = std::function<void(const std::string &interface_name,

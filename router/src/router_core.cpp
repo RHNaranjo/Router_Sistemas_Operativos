@@ -1,6 +1,9 @@
 #include "../include/router_core.hpp"
+#include "../include/md5.hpp"
 #include "../include/network_engine.hpp"
 #include "../include/packet.hpp"
+#include "../include/router_cli.hpp"
+#include <fstream>
 #include <iostream>
 #include <sstream>
 
@@ -19,7 +22,7 @@ std::string RouterCore::expandir_nombre_interfaz(const std::string &nombre) {
   return nombre; // Sin cambios si no coincide con ninguna abreviatura
 }
 
-// Buscar una interfaz por nombre
+// Buscar interfaz por nombre expandiendo abreviaturas
 InfoInterfaz *RouterCore::get_interfaz(const std::string &nombre) {
   std::string nombre_expandido = expandir_nombre_interfaz(nombre);
   for (auto &intf : interfaces) {
@@ -29,7 +32,7 @@ InfoInterfaz *RouterCore::get_interfaz(const std::string &nombre) {
   return nullptr; // Interfaz no encontrada
 }
 
-// Crear una ruta y agregarla al vector de rutas
+// Agregar una nueva ruta a la tabla de ruteo
 InfoRoute *RouterCore::set_route(std::string destino, std::string netmask,
                                  std::string via, std::string interfaz,
                                  std::string protocolo) {
@@ -54,6 +57,22 @@ void RouterCore::init_default_state() {
   gig00.netmask = "";
   gig00.up = false;
   interfaces.push_back(gig00);
+
+  // GigabitEthernet0/1
+  InfoInterfaz gig01;
+  gig01.nombre = "GigabitEthernet0/1";
+  gig01.ip = "";
+  gig01.netmask = "";
+  gig01.up = false;
+  interfaces.push_back(gig01);
+
+  // GigabitEthernet0/2
+  InfoInterfaz gig02;
+  gig02.nombre = "GigabitEthernet0/2";
+  gig02.ip = "";
+  gig02.netmask = "";
+  gig02.up = false;
+  interfaces.push_back(gig02);
 
   // GigabitEthernet0/0/0  (Gig0/0/0)
   InfoInterfaz gig000;
@@ -99,6 +118,7 @@ void RouterCore::init_default_state() {
   ospf_config.passive_interfaces.clear();
 }
 
+// Generar configuración actual en formato de comandos Cisco
 void RouterCore::generar_running_config() {
   std::ostringstream oss;
 
@@ -108,20 +128,21 @@ void RouterCore::generar_running_config() {
 
   // Seguridad
   if (enable_secret)
-    oss << "enable secret (hashed)" << std::endl;
+    oss << "enable secret 5 " << password << std::endl;
 
-  if (!password.empty()) {
+  if (!password.empty() && !enable_secret) {
     oss << "!" << std::endl;
     oss << "line console 0" << std::endl;
     oss << " password " << password << std::endl;
     if (login_local)
       oss << " login local" << std::endl;
-    oss << std::endl;
+    oss << "exit" << std::endl;
+    oss << "!" << std::endl;
   }
 
   // Interfaces
   for (const auto &interfaz : interfaces) {
-    oss << "interface: " << interfaz.nombre << std::endl;
+    oss << "interface " << interfaz.nombre << std::endl;
     if (!interfaz.description.empty())
       oss << " description " << interfaz.description << std::endl;
 
@@ -134,12 +155,23 @@ void RouterCore::generar_running_config() {
     else
       oss << " shutdown" << std::endl;
 
-    oss << std::endl;
+    oss << "exit" << std::endl;
+    oss << "!" << std::endl;
+  }
+
+  // DHCP
+  for (const auto &pool : dhcp_pools) {
+    oss << "ip dhcp pool " << pool.nombre << std::endl;
+    if (!pool.red.empty())
+      oss << " network " << pool.red << " " << pool.mascara << std::endl;
+    if (!pool.gateway.empty())
+      oss << " default-router " << pool.gateway << std::endl;
+    oss << "exit" << std::endl;
+    oss << "!" << std::endl;
   }
 
   // OSPF
   if (ospf_config.active) {
-    oss << "!" << std::endl;
     oss << "router ospf " << ospf_config.process_id << std::endl;
     if (!ospf_config.router_id.empty())
       oss << " router-id " << ospf_config.router_id << std::endl;
@@ -148,31 +180,109 @@ void RouterCore::generar_running_config() {
       oss << " network " << net.network << " " << net.wildcard << " area "
           << net.area << std::endl;
     }
-
     for (const auto &p_intf : ospf_config.passive_interfaces) {
       oss << " passive-interface " << p_intf << std::endl;
     }
+    oss << "exit" << std::endl;
+    oss << "!" << std::endl;
   }
 
-  oss << "!" << std::endl;
   oss << "end" << std::endl;
 
   // Asignar el texto generado al running_config
   running_config.texto = oss.str();
 }
 
-void RouterCore::actualizar_running_config() { generar_running_config(); }
+// Guardar configuración manteniendo las líneas de topología originales
+void RouterCore::save_to_file(const std::string &filename) {
+  std::vector<std::string> topology_lines;
 
-void RouterCore::process_password(const std::string &pwd, bool hashear) {
-  if (hashear) {
-    // Por ahora se almacena con un marcador simple.
-    // En una fase posterior se puede agregar hash MD5 real.
-    password = "[hashed]" + pwd;
-  } else {
-    password = pwd;
+  // 1. Leer el archivo original para extraer las líneas de topología
+  {
+    std::ifstream infile(filename);
+    if (infile.is_open()) {
+      std::string line;
+      while (std::getline(infile, line)) {
+        std::stringstream ss(line);
+        std::string first_token;
+        if (!(ss >> first_token))
+          continue;
+
+        // Si el primer token es el nombre del router, es una línea de topología
+        if (first_token == hostname) {
+          topology_lines.push_back(line);
+        }
+      }
+      infile.close();
+    }
+  }
+
+  // 2. Generar la nueva configuración lógica
+  generar_running_config();
+
+  // 3. Escribir el archivo final combinando ambos
+  std::ofstream outfile(filename);
+  if (outfile.is_open()) {
+    outfile << "# Topología física" << std::endl;
+    for (const auto &topo : topology_lines) {
+      outfile << topo << std::endl;
+    }
+    outfile << std::endl << "# Configuración lógica" << std::endl;
+    outfile << running_config.texto;
+    outfile.close();
   }
 }
 
+// Cargar y ejecutar comandos desde un archivo de configuración
+// Cargar y ejecutar comandos desde un archivo de configuración
+void RouterCore::load_from_file(const std::string &filename, RouterCLI &cli) {
+  std::ifstream file(filename);
+  if (!file.is_open())
+    return;
+
+  // Guardar modo actual y forzar GLOBAL_CONFIG para la carga
+  CliMode modo_previo = cli.modo_actual;
+  cli.modo_actual = CliMode::GLOBAL_CONFIG;
+
+  std::string linea;
+  std::string error;
+  while (std::getline(file, linea)) {
+    if (linea.empty() || linea[0] == '!' || linea.find("version") == 0 ||
+        linea.find("#") == 0)
+      continue;
+
+    // Eliminar espacios al inicio
+    size_t first = linea.find_first_not_of(" \t");
+    if (first != std::string::npos) {
+      linea = linea.substr(first);
+    }
+
+    if (linea == "end")
+      break;
+
+    CommandContexto contexto = cli.crear_contexto();
+    const auto &arbol = cli.obtener_arbol_de_modo(cli.modo_actual);
+    arbol.ejecutar_linea(contexto, linea, error);
+  }
+
+  // Restaurar modo inicial (usualmente USER_EXEC)
+  cli.modo_actual = modo_previo;
+}
+
+void RouterCore::actualizar_running_config() { generar_running_config(); }
+
+// Procesar y hashear contraseña si es necesario
+void RouterCore::process_password(const std::string &pwd, bool hashear) {
+  if (hashear) {
+    password = md5(pwd);
+    enable_secret = true;
+  } else {
+    password = pwd;
+    enable_secret = false;
+  }
+}
+
+// Procesar paquetes entrantes, ruteo, DHCP e ICMP
 void RouterCore::handle_incoming_packet(const std::string &iface,
                                         const SimulatedPacket &pkt) {
   // 1. Detectar si el paquete es para este router (IP propia o Broadcast)
@@ -283,17 +393,37 @@ void RouterCore::handle_incoming_packet(const std::string &iface,
   // 2. Si no es para mí, intentamos el reenvío (Forwarding)
   InfoRoute *ruta = find_route(pkt.dst_ip);
   if (ruta) {
-    // Si la interfaz de salida es distinta a la de entrada (evitar loops
-    // simples) O simplemente reenviar si es una red conocida
     if (net_engine) {
-      // Decrementar TTL
-      SimulatedPacket forwarded_pkt = pkt;
-      if (forwarded_pkt.ttl > 1) {
-        forwarded_pkt.ttl--;
-        net_engine->send_packet(ruta->interfaz, forwarded_pkt);
+      // Verificar TTL antes de reenviar
+      if (pkt.ttl <= 1) {
+        // Enviar ICMP Time Exceeded
+        SimulatedPacket error_pkt;
+        error_pkt.protocol = 1;
+        std::strncpy(error_pkt.src_ip, interfaces[0].ip.c_str(), 16);
+        std::strncpy(error_pkt.dst_ip, pkt.src_ip, 16);
+        std::strncpy(error_pkt.payload, "TIME_EXCEEDED", 1024);
+        error_pkt.payload_len = 13;
+        net_engine->send_packet(iface, error_pkt);
         return;
       }
+
+      SimulatedPacket forwarded_pkt = pkt;
+      forwarded_pkt.ttl--;
+      net_engine->send_packet(ruta->interfaz, forwarded_pkt);
+      return;
     }
+  }
+
+  // 3. Si no hay ruta, enviar ICMP Destination Unreachable
+  if (net_engine &&
+      std::string(pkt.payload).find("DHCP") == std::string::npos) {
+    SimulatedPacket error_pkt;
+    error_pkt.protocol = 1;
+    std::strncpy(error_pkt.src_ip, interfaces[0].ip.c_str(), 16);
+    std::strncpy(error_pkt.dst_ip, pkt.src_ip, 16);
+    std::strncpy(error_pkt.payload, "DEST_UNREACHABLE", 1024);
+    error_pkt.payload_len = 16;
+    net_engine->send_packet(iface, error_pkt);
   }
 
   std::cout << "\n[Router] Drop: No hay ruta hacia " << pkt.dst_ip << std::endl;

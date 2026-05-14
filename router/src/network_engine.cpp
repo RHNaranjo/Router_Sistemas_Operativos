@@ -13,6 +13,7 @@ NetworkEngine::~NetworkEngine() {
     stop();
 }
 
+// Cargar conexiones físicas desde archivo y crear sockets UDP
 bool NetworkEngine::load_topology(const std::string& filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -74,6 +75,7 @@ bool NetworkEngine::load_topology(const std::string& filename) {
     return !links_.empty();
 }
 
+// Iniciar hilos de recepción para cada interfaz configurada
 void NetworkEngine::start() {
     running_ = true;
     for (auto& pair : links_) {
@@ -81,6 +83,7 @@ void NetworkEngine::start() {
     }
 }
 
+// Detener motor de red y cerrar todos los sockets
 void NetworkEngine::stop() {
     running_ = false;
     for (auto& pair : links_) {
@@ -94,6 +97,7 @@ void NetworkEngine::stop() {
     rx_threads_.clear();
 }
 
+// Enviar paquete binario a través de una interfaz específica
 bool NetworkEngine::send_packet(const std::string& interface_name, const SimulatedPacket& packet) {
     if (links_.find(interface_name) == links_.end()) return false;
 
@@ -108,6 +112,7 @@ void NetworkEngine::set_on_receive(PacketCallback callback) {
     on_receive_ = callback;
 }
 
+// Bucle continuo para recibir paquetes y disparar el callback
 void NetworkEngine::rx_loop(InterfaceLink& link) {
     SimulatedPacket packet;
     struct sockaddr_in sender_addr;

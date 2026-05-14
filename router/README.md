@@ -1,32 +1,39 @@
-# Router Component
+# Componente Router
 
-Este directorio contiene la implementación completa del emulador de Router.
+Este directorio contiene la implementación central del emulador de Router, diseñado para comportarse como un dispositivo de red profesional.
 
 ## Estructura de Archivos
 
 - **include/**
-  - `router_core.hpp`: Definición del núcleo lógico, tablas de ruteo y configuración.
-  - `router_cli.hpp`: Estructura del árbol de comandos y modos de consola (Cisco-style).
-  - `network_engine.hpp`: Motor de comunicación basado en sockets UDP.
-  - `packet.hpp`: Definición del formato binario de los paquetes simulados (`SimulatedPacket`).
+  - `router_core.hpp`: Núcleo lógico (tablas de ruteo, DHCP pools, configuración).
+  - `router_cli.hpp`: Motor de CLI jerárquica y árboles de comandos (Tries).
+  - `network_engine.hpp`: Abstracción de capa física mediante sockets UDP.
+  - `packet.hpp`: Definición del formato binario `SimulatedPacket`.
+  - `md5.hpp`: Interfaz para el algoritmo de hashing.
 - **src/**
-  - `router_core.cpp`: Lógica de ruteo, manejo de interfaces y servidor DHCP.
-  - `router_cli.cpp`: Implementación de los manejadores de comandos (Ping, DHCP, OSPF, etc.).
-  - `network_engine.cpp`: Lógica de envío/recepción de paquetes y carga de topología.
-  - `main.cpp`: Punto de entrada que inicializa los componentes.
+  - `router_core.cpp`: Lógica de forwarding, DHCP, ICMP y persistencia.
+  - `router_cli.cpp`: Manejadores de comandos (configuración y diagnóstico).
+  - `network_engine.cpp`: Gestión de sockets, hilos de recepción y carga de topología.
+  - `md5.cpp`: Implementación del algoritmo MD5.
+  - `main.cpp`: Inicialización y orquestación del sistema.
 
-## Funcionalidades Actuales
+## Funcionalidades Clave
 
-1. **CLI Robustecida**:
-   - Soporta `User Exec`, `Privileged Exec`, `Global Config`, `Interface Config` y `DHCP Config`.
-   - **Validación Preventiva**: El comando `interface` verifica la existencia física de la interfaz antes de entrar al modo de configuración.
-   - **Navegación**: Inclusión del comando `end` para retornar rápidamente al modo privilegiado desde submodos.
-2. **Servidor DHCP**: Capacidad de crear pools de red y asignar IPs dinámicamente a hosts (PCs).
-3. **ICMP (Ping)**: Respuesta automática a paquetes Echo Request y ejecución de pings desde la CLI.
-4. **Ruteo**: Tabla de rutas dinámicas y cálculo de redes (Longest Prefix Match).
-5. **OSPF**: Estructura base para el protocolo de ruteo dinámico.
+1. **CLI Jerárquica**:
+   - Modos: `User`, `Privileged`, `Global Config`, `Interface`, `Line` y `DHCP`.
+   - Soporte de abreviaturas (ej: `sh ip int br` -> `show ip interface brief`).
+2. **Seguridad Avanzada**:
+   - `enable secret`: Almacenamiento de contraseñas mediante hash MD5 real.
+   - Validación de acceso al modo privilegiado.
+3. **Servicios de Red**:
+   - **Servidor DHCP**: Flujo DORA completo para asignar IPs dinámicamente.
+   - **Enrutamiento Estático**: Gestión de rutas manuales e interconexión multi-router.
+4. **Diagnóstico ICMP**:
+   - **Echo (Ping)**: Generación y respuesta de Echo Request/Reply.
+   - **Traceroute**: Generación de `Time Exceeded` cuando el TTL llega a 0.
+   - **Unreachable**: Notificación cuando no existe una ruta al destino.
+5. **Persistencia (Write)**:
+   - Capacidad de guardar la configuración lógica en el archivo de topología original, permitiendo la recuperación del estado tras un `reload`.
 
-## Archivos de Configuración
-- `config_router_1.txt` / `config_router_2.txt`: Configuraciones de topología estándar.
-- `config_2pcs.txt`: Topología optimizada para el escenario multihost.
-
+## Configuración y Topología
+El router utiliza archivos de texto para definir sus conexiones físicas y su estado lógico inicial. Ejemplos incluidos: `topo_corerouter.txt`, `topo_R1.txt`.

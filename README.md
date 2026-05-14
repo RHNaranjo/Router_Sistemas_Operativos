@@ -1,84 +1,81 @@
-# Router_Sistemas_Operativos
+# Emulador de Red: Router & PC (C++20)
 
-Proyecto final para la materia de sistemas operativos. Emulador de router con capacidades de CLI (estilo Cisco), ruteo dinámico (OSPF) y comunicación real entre instancias mediante sockets UDP.
+Este proyecto es una simulación integral de una red corporativa, permitiendo la interacción entre instancias de Routers y PCs mediante comunicación real por sockets UDP. Emula el comportamiento de dispositivos Cisco con una CLI jerárquica, protocolos de red dinámicos y persistencia de configuración.
+
+## Características Principales
+
+- **Networking Real**: Comunicación basada en sockets UDP para simular enlaces físicos.
+- **Seguridad MD5**: Implementación real del algoritmo MD5 para proteger el acceso al modo privilegiado (`enable secret`).
+- **Protocolo DHCP**: Flujo DORA completo (Discover, Offer, Request, ACK) para asignación dinámica de IPs.
+- **Diagnóstico Avanzado**: Soporte para `ping` y `traceroute` con manejo de mensajes ICMP (Echo, Time Exceeded, Destination Unreachable).
+- **Persistencia**: Capacidad de guardar (`write`) y cargar configuraciones lógicas directamente en los archivos de topología.
+- **Enrutamiento**: Soporte para rutas estáticas e interconexión entre múltiples routers.
 
 ## Estructura del Proyecto
 
-```
+```text
 Router_Sistemas_Operativos/
-├── include/
-│   ├── packet.hpp           # Estructura de paquetes simulados
-│   ├── network_engine.hpp   # Motor de red (UDP Sockets)
-│   ├── router_core.hpp      # Núcleo lógico y estado
-│   └── router_cli.hpp       # Interfaz de línea de comandos
-├── src/
-│   ├── main.cpp             # Punto de entrada
-│   ├── network_engine.cpp   # Implementación de sockets
-│   ├── router_core.cpp      # Lógica de ruteo y configuración
-│   └── router_cli.cpp       # Manejadores de comandos
-├── config_router_1.txt      # Topología para Router 1
-├── config_router_2.txt      # Topología para Router 2
-├── Makefile
-└── README.md
+├── router/             # Componentes del Router
+│   ├── include/        # Headers (Core, CLI, Network, MD5)
+│   └── src/            # Implementación (Core, CLI, Network, MD5)
+├── pc/                 # Componentes de la PC (Host)
+│   └── src/            # Cliente DHCP, lógica ICMP y CLI de PC
+├── Makefile            # Compilación unificada
+├── topo_corerouter.txt # Topología de red corporativa final
+└── topo_R1.txt / R2    # Topología multi-router
 ```
 
-## Compilación
+## Compilación y Ejecución
 
-El proyecto utiliza C++20 y soporte para hilos (pthread).
+### 1. Compilar
 
 ```bash
-make compile
+make all
 ```
 
-## Ejecución
+Esto generará los binarios `router_exe` y `pc_exe`.
 
-El programa requiere el nombre del router y su archivo de topología para inicializar los sockets correctamente.
+### 2. Ejecutar Escenario Corporativo (CoreRouter + 2 LANs)
+
+Abre 3 terminales y ejecuta:
+
+**Terminal 1 (Router):**
 
 ```bash
-# Para el Router 1 (Terminal 1)
-./router Router1 config_router_1.txt
-
-# Para el Router 2 (Terminal 2)
-./router Router2 config_router_2.txt
+./router_exe CoreRouter topo_corerouter.txt
 ```
 
-### Configuración de Red Real
-El emulador permite interconexión real. Para que dos routers se hablen, configura sus interfaces en la misma subred:
+**Terminal 2 (PC Ventas):**
 
-**Router 1:**
-```text
-enable
-configure terminal
-interface Gig0/0
-ip address 10.0.0.1 255.255.255.0
-no shutdown
+```bash
+./pc_exe PC_Ventas topo_pc_ventas.txt
 ```
 
-**Router 2:**
-```text
-enable
-configure terminal
-interface Gig0/0
-ip address 10.0.0.2 255.255.255.0
-no shutdown
+**Terminal 3 (PC Soporte):**
+
+```bash
+./pc_exe PC_Soporte topo_pc_soporte.txt
 ```
 
-## Comandos Disponibles
+## Comandos Destacados
 
-### Modo Usuario y Privilegiado
-*   `enable` / `disable`: Cambio de privilegios.
-*   `ping <IP>`: Envío de paquetes ICMP reales entre instancias.
-*   `show ip interface brief`: Resumen de estado de interfaces.
-*   `show ip route`: Visualización de la tabla de ruteo.
-*   `show running-config`: Configuración actual en memoria.
+### En el Router
 
-### Modo Configuración Global
-*   `hostname <name>`: Cambiar nombre del router.
-*   `interface <name>`: Entrar a modo interfaz.
-*   `router ospf <id>`: Entrar a modo OSPF.
+- `enable` / `configure terminal`: Navegación por modos de configuración.
+- `enable secret <password>`: Configura contraseña con hash MD5.
+- `ip dhcp pool <nombre>`: Configuración de servidores DHCP.
+- `copy running-config startup-config` (o `write`): Persistencia a disco.
+- `show ip interface brief` / `show ip route`: Diagnóstico de interfaces y rutas.
 
-### Modo Interfaz
-*   `ip address <ip> <mask>`: Asignar dirección IP.
-*   `no shutdown`: Activar la interfaz.
-*   `description <text>`: Añadir descripción.
+### En la PC
 
+- `show ip interface brief`: Verifica la IP asignada por DHCP.
+- `ping <IP>`: Prueba conectividad básica.
+- `traceroute <IP>`: Rastrea los saltos (routers) hasta el destino.
+
+## Tecnologías Utilizadas
+
+- **Lenguaje**: C++20 con hilos POSIX (`std::thread`).
+- **Comunicación**: Sockets UDP (Berkeley API).
+- **Criptografía**: Implementación propia del algoritmo MD5.
+- **Diseño**: Árboles N-arios (Tries) para parsing de comandos con soporte de abreviaturas.

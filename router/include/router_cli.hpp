@@ -76,10 +76,15 @@ public:
   // Bucle
   void run();
 
-private:
   // El CLI comienza en user exec
   CliMode modo_actual = CliMode::USER_EXEC;
 
+  // Funciones helpers
+  CommandContexto crear_contexto() const;
+  const ArbolComandos &obtener_arbol_de_modo(CliMode modo) const;
+  std::string prompt() const;
+
+private:
   RouterCore &core_; // Referencia al core (configuración) del router
 
   std::string interfaz, ospf_process_id, dhcp_pool_name;
@@ -92,11 +97,6 @@ private:
   ArbolComandos arbol_if_cfg;
   ArbolComandos arbol_ospf_cfg;
   ArbolComandos arbol_dhcp_cfg;
-
-  // Funciones helpers
-  CommandContexto crear_contexto() const;
-  const ArbolComandos &obtener_arbol_de_modo(CliMode modo) const;
-  std::string prompt() const;
 
   // Registrar comandos por modo
   void registrar_comandos_user_exec();

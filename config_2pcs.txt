@@ -1,0 +1,4 @@
+# Topología para Router de 2 PCs
+# [Router] [Interface] [LocalPort] [RemoteIP] [RemotePort]
+Router1 GigabitEthernet0/0 5000 127.0.0.1 6000
+Router1 GigabitEthernet0/0/0 5001 127.0.0.1 6001

@@ -65,6 +65,7 @@ class RouterCore {
 public:
   std::string hostname = "Router";
   std::string version = "Router Sistemas Operativos 2.0";
+  std::string config_file = "";
 
   std::vector<InfoInterfaz> interfaces;
   std::vector<InfoOSPF> ospf_neighbors;
@@ -94,6 +95,8 @@ public:
   void generar_running_config();
   void actualizar_running_config();
   void recalcular_rutas_connected();
+  void save_to_file(const std::string &filename);
+  void load_from_file(const std::string &filename, class RouterCLI &cli);
 
   void process_password(const std::string &pwd, bool hashear);
   void handle_incoming_packet(const std::string &iface,

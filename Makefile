@@ -1,8 +1,8 @@
 CXX = clang++
 CXXFLAGS = -std=c++20 -pthread -Irouter/include
 
-ROUTER_SRC = router/src/main.cpp router/src/router_core.cpp router/src/router_cli.cpp router/src/network_engine.cpp
-PC_SRC = pc/src/main.cpp router/src/network_engine.cpp
+ROUTER_SRC = router/src/main.cpp router/src/router_core.cpp router/src/router_cli.cpp router/src/network_engine.cpp router/src/md5.cpp
+PC_SRC = pc/src/main.cpp router/src/network_engine.cpp router/src/router_core.cpp router/src/router_cli.cpp router/src/md5.cpp
 
 all: router_bin pc_bin
 

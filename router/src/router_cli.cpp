@@ -1,12 +1,13 @@
 #include "../include/router_cli.hpp"
 #include "../include/packet.hpp"
 #include "../include/network_engine.hpp"
+#include "../include/md5.hpp"
 #include <chrono> //Para simular ping
 #include <iostream>
 #include <sstream>
 #include <thread> //Para simular ping
 
-// Buscar o crear un nuevo comando
+// Registrar un nuevo comando en el árbol jerárquico
 void ArbolComandos::nuevo_comando(const std::vector<std::string> &keywords,
                                   const std::string &help,
                                   CommandHandler handler) {
@@ -46,6 +47,7 @@ void ArbolComandos::nuevo_comando(const std::vector<std::string> &keywords,
 }
 
 // Tokenizar los comandos
+// Dividir línea de comando en tokens individuales
 std::vector<std::string> ArbolComandos::tokenize(const std::string &linea) {
   // Leer las cadena como flujo de entrada
   std::istringstream iss(linea);
@@ -60,7 +62,7 @@ std::vector<std::string> ArbolComandos::tokenize(const std::string &linea) {
   return tokens;
 }
 
-// Permitir abreviaturas (sh == show / en == enable)
+// Identificar comando permitiendo abreviaturas y resolviendo ambigüedades
 const CommandNodo *
 ArbolComandos::detectar_comando(const std::vector<std::string> &tokens,
                                 std::vector<const CommandNodo *> &path,
@@ -113,7 +115,7 @@ ArbolComandos::detectar_comando(const std::vector<std::string> &tokens,
   return path.back();
 }
 
-// Ejecutar el comando
+// Orquestar tokenización, detección y ejecución de un comando
 bool ArbolComandos::ejecutar_linea(CommandContexto &contexto,
                                    const std::string &linea,
                                    std::string &mensaje_error) const {
@@ -379,6 +381,13 @@ void RouterCLI::registrar_comandos_priv_exec() {
                                        const std::vector<std::string> &tokens) {
                                   handle_reload(contexto, tokens);
                                 });
+
+  // Shutdown
+  arbol_priv_exec.nuevo_comando({"shutdown"}, "Apagar el router",
+                                [this](const CommandContexto &contexto,
+                                       const std::vector<std::string> &tokens) {
+                                  handle_exit(contexto, tokens);
+                                });
 }
 
 void RouterCLI::registrar_comandos_global_cfg() {
@@ -572,8 +581,19 @@ void RouterCLI::registrar_comandos_ospf_cfg() {
 }
 
 // ------- HANDLERS USER EXEC --------
-void RouterCLI::handle_enable(const CommandContexto &,
+void RouterCLI::handle_enable(const CommandContexto &contexto,
                               const std::vector<std::string> &) {
+  if (contexto.core->enable_secret) {
+    std::string pass;
+    std::cout << "Password: ";
+    std::getline(std::cin, pass);
+    
+    if (md5(pass) != contexto.core->password) {
+      std::cout << "% Password incorrect." << std::endl;
+      return;
+    }
+  }
+
   // Se cambia de user exec a priv exec
   modo_actual = CliMode::PRIVILEGED_EXEC;
 }
@@ -740,13 +760,18 @@ void RouterCLI::handle_show_ip_route(const CommandContexto &contexto,
 
 void RouterCLI::handle_copy_running_config_startup_config(
     const CommandContexto &contexto, const std::vector<std::string> &) {
-  if (contexto.core->running_config.texto.empty())
-    contexto.core->generar_running_config();
-
-  contexto.core->startup_config =
-      ConfigSnapshot{contexto.core->running_config.texto};
-
+  
   std::cout << "Building configuration...\n" << std::endl;
+  
+  // Guardado en memoria
+  contexto.core->generar_running_config();
+  contexto.core->startup_config = ConfigSnapshot{contexto.core->running_config.texto};
+
+  // Guardado en disco real
+  if (!contexto.core->config_file.empty()) {
+      contexto.core->save_to_file(contexto.core->config_file);
+  }
+
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
   std::cout << "[OK]" << std::endl;
 }
@@ -781,8 +806,23 @@ void RouterCLI::handle_hostname(const CommandContexto &contexto,
 }
 
 void RouterCLI::handle_enable_secret(const CommandContexto &contexto,
-                                     const std::vector<std::string> &) {
-  contexto.core->enable_secret = true;
+                                     const std::vector<std::string> &tokens) {
+  if (tokens.size() < 3) {
+    std::cout << "ERROR: Formato incorrecto.\nUso: enable secret [5] "
+                 "<password/hash>"
+              << std::endl;
+    return;
+  }
+
+  if (tokens[2] == "5" && tokens.size() >= 4) {
+    // Es un hash ya generado (cargado de archivo)
+    contexto.core->password = tokens[3];
+    contexto.core->enable_secret = true;
+  } else {
+    // Es una contraseña plana, hay que hashearla
+    contexto.core->process_password(tokens[2], true);
+  }
+  std::cout << "Secret configurado correctamente." << std::endl;
 }
 
 void RouterCLI::handle_line_console_0(const CommandContexto &,

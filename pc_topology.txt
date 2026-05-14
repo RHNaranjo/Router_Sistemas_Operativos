@@ -1,3 +1,0 @@
-# Topología para PC1
-# [Nombre] [Interfaz] [Puerto Local] [IP Remota] [Puerto Remoto]
-PC1 Ethernet0 6000 127.0.0.1 5000

@@ -3,6 +3,7 @@
 #include "../include/router_core.hpp"
 #include <iostream>
 
+// Punto de entrada principal para el emulador de router
 int main(int argc, char *argv[]) {
   if (argc < 3) {
     std::cout << "Uso: " << argv[0] << " <NOMBRE_ROUTER> <ARCHIVO_TOPOLOGIA>"
@@ -20,7 +21,7 @@ int main(int argc, char *argv[]) {
   core.init_default_state();
   core.generar_running_config();
 
-  // Inicializar Motor de Red
+// Inicializar motor de red y cargar enlaces físicos
   NetworkEngine net(router_name);
   if (!net.load_topology(topology_file)) {
     std::cerr << "Advertencia: No se cargó ninguna interfaz de red para este "
@@ -28,20 +29,24 @@ int main(int argc, char *argv[]) {
               << topology_file << std::endl;
   }
 
-  // Vincular Core con Red
+// Conectar la lógica del core con el motor de red
   core.net_engine = &net;
   net.set_on_receive(
       [&core](const std::string &iface, const SimulatedPacket &pkt) {
         core.handle_incoming_packet(iface, pkt);
       });
 
-  // Iniciar recepción
+// Iniciar hilos de escucha de paquetes en segundo plano
   net.start();
 
   // Crear la CLI asociada al core
   RouterCLI cli(core);
 
-  // Ejecutar
+  // Cargar configuración previa si existe
+  core.config_file = topology_file;
+  core.load_from_file(topology_file, cli);
+
+// Iniciar bucle interactivo de la línea de comandos
   cli.run();
 
   // Detener red antes de salir

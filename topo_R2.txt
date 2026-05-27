@@ -14,15 +14,14 @@ interface GigabitEthernet0/1
 exit
 !
 interface GigabitEthernet0/0
- description LAN_B_H1
+ description LAN_B
  ip address 172.16.1.1 255.255.255.0
  no shutdown
 exit
 !
 interface GigabitEthernet0/2
- description LAN_B_H2
- ip address 172.16.1.2 255.255.255.0
- no shutdown
+ description SIN_USO
+ shutdown
 exit
 !
 ip dhcp pool Pool_B

@@ -67,7 +67,17 @@ int main(int argc, char *argv[]) {
       }
     } else if (pkt.protocol == 1) { // ICMP
       std::string payload(pkt.payload);
+      // Ignorar paquetes ICMP que no son para nosotros
+      std::string dst(pkt.dst_ip);
+      std::string src(pkt.src_ip);
+      bool es_para_mi_icmp =
+          (dst == current_ip || dst == "255.255.255.255");
+      // Ignorar paquetes que nosotros mismos enviamos (loopback del motor)
+      bool es_propio = (src == current_ip);
+
       if (payload.find("ECHO_REQUEST") != std::string::npos) {
+        if (!es_para_mi_icmp || es_propio)
+          return;
         std::cout << "\r[ICMP] Echo Request de " << pkt.src_ip
                   << ". Respondiendo..." << std::endl;
         std::cout << pc_name << "> " << std::flush;

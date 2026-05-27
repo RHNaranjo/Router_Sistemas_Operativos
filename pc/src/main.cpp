@@ -102,12 +102,17 @@ int main(int argc, char *argv[]) {
 
   // Solicitar IP dinámicamente mediante broadcast DHCP Discover
   std::cout << "[DHCP] Iniciando descubrimiento..." << std::endl;
+
   SimulatedPacket discover;
   discover.protocol = 67;
+
   std::strncpy(discover.src_ip, "0.0.0.0", 16);
   std::strncpy(discover.dst_ip, "255.255.255.255", 16);
+
   std::string discover_msg = "DHCP_DISCOVER CLIENT:" + pc_name;
+
   std::strncpy(discover.payload, discover_msg.c_str(), 1024);
+
   discover.payload_len = discover_msg.length();
 
   // Suponemos que enviamos por la primera interfaz disponible
@@ -157,9 +162,11 @@ int main(int argc, char *argv[]) {
       for (int i = 0; i < 4; ++i) {
         SimulatedPacket pkt;
         pkt.protocol = 1; // ICMP
+
         std::strncpy(pkt.src_ip, current_ip.c_str(), 16);
         std::strncpy(pkt.dst_ip, dest_ip.c_str(), 16);
         std::strncpy(pkt.payload, "ECHO_REQUEST", 1024);
+
         pkt.payload_len = 12;
 
         if (!net.send_packet("Ethernet0", pkt)) {
@@ -170,10 +177,12 @@ int main(int argc, char *argv[]) {
       }
     } else if (linea.rfind("traceroute ", 0) == 0) {
       std::string dest_ip = linea.substr(11);
+
       if (dest_ip.empty()) {
         std::cout << "Uso: traceroute <IP>" << std::endl;
         continue;
       }
+
       if (!bound) {
         std::cout << "ERROR: PC no tiene IP." << std::endl;
         continue;
@@ -185,9 +194,11 @@ int main(int argc, char *argv[]) {
         SimulatedPacket pkt;
         pkt.protocol = 1; // ICMP
         pkt.ttl = ttl;
+
         std::strncpy(pkt.src_ip, current_ip.c_str(), 16);
         std::strncpy(pkt.dst_ip, dest_ip.c_str(), 16);
         std::strncpy(pkt.payload, "TRACEROUTE", 1024);
+
         pkt.payload_len = 10;
 
         std::cout << "  " << ttl << "  ";
@@ -198,6 +209,7 @@ int main(int argc, char *argv[]) {
         // Esperar respuesta (esto es simplificado, en realidad deberíamos
         // matchear el paquete en on_receive)
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
         // Nota: El log de la respuesta aparecerá vía on_receive
       }
     } else {

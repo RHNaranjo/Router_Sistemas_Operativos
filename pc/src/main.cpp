@@ -62,7 +62,8 @@ int main(int argc, char *argv[]) {
     } else if (pkt.protocol == 1) { // ICMP
       std::string payload(pkt.payload);
       if (payload.find("ECHO_REQUEST") != std::string::npos) {
-        std::cout << "\r[ICMP] Echo Request de " << pkt.src_ip << ". Respondiendo..." << std::endl;
+        std::cout << "\r[ICMP] Echo Request de " << pkt.src_ip
+                  << ". Respondiendo..." << std::endl;
         std::cout << pc_name << "> " << std::flush;
         SimulatedPacket reply;
         reply.protocol = 1;
@@ -72,13 +73,15 @@ int main(int argc, char *argv[]) {
         reply.payload_len = 10;
         net.send_packet(iface, reply);
       } else if (payload.find("ECHO_REPLY") != std::string::npos) {
-        std::cout << "\r[ICMP] Reply from " << pkt.src_ip << ": bytes=32 TTL=" << (int)pkt.ttl << std::endl;
+        std::cout << "\r[ICMP] Reply from " << pkt.src_ip
+                  << ": bytes=32 TTL=" << (int)pkt.ttl << std::endl;
         std::cout << pc_name << "> " << std::flush;
       } else if (payload.find("TIME_EXCEEDED") != std::string::npos) {
         std::cout << "\r[ICMP] Time Exceeded from " << pkt.src_ip << std::endl;
         std::cout << pc_name << "> " << std::flush;
       } else if (payload.find("DEST_UNREACHABLE") != std::string::npos) {
-        std::cout << "\r[ICMP] Destination Unreachable from " << pkt.src_ip << std::endl;
+        std::cout << "\r[ICMP] Destination Unreachable from " << pkt.src_ip
+                  << std::endl;
         std::cout << pc_name << "> " << std::flush;
       }
     }
@@ -114,11 +117,10 @@ int main(int argc, char *argv[]) {
       continue;
 
     if (linea == "show ip interface brief") {
-      std::cout << "\nInterface       IP-Address      Status       Protocol" << std::endl;
-      printf("%-15s %-15s %-12s %-8s\n", "Ethernet0", 
-             current_ip.c_str(), 
-             bound ? "up" : "down", 
-             bound ? "up" : "down");
+      std::cout << "\nInterface       IP-Address      Status       Protocol"
+                << std::endl;
+      printf("%-15s %-15s %-12s %-8s\n", "Ethernet0", current_ip.c_str(),
+             bound ? "up" : "down", bound ? "up" : "down");
       continue;
     }
 
@@ -167,7 +169,8 @@ int main(int argc, char *argv[]) {
         continue;
       }
 
-      std::cout << "Tracing route to " << dest_ip << " over a maximum of 30 hops:" << std::endl;
+      std::cout << "Tracing route to " << dest_ip
+                << " over a maximum of 30 hops:" << std::endl;
       for (int ttl = 1; ttl <= 30; ++ttl) {
         SimulatedPacket pkt;
         pkt.protocol = 1; // ICMP
@@ -181,8 +184,9 @@ int main(int argc, char *argv[]) {
         std::cout.flush();
 
         net.send_packet("Ethernet0", pkt);
-        
-        // Esperar respuesta (esto es simplificado, en realidad deberíamos matchear el paquete en on_receive)
+
+        // Esperar respuesta (esto es simplificado, en realidad deberíamos
+        // matchear el paquete en on_receive)
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         // Nota: El log de la respuesta aparecerá vía on_receive
       }

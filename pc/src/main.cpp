@@ -25,7 +25,9 @@ int main(int argc, char *argv[]) {
   }
 
   std::string current_ip = "0.0.0.0";
+
   std::string current_mask = "";
+
   bool bound = false;
 
   // Configurar manejador de paquetes entrantes (DHCP e ICMP)
@@ -36,6 +38,7 @@ int main(int argc, char *argv[]) {
       if (payload.find("DHCP_OFFER") != std::string::npos && !bound) {
         // Extraer IP ofrecida
         size_t ip_pos = payload.find("IP:");
+
         std::string offered_ip = payload.substr(
             ip_pos + 3, payload.find(" ", ip_pos) - (ip_pos + 3));
 
@@ -43,12 +46,15 @@ int main(int argc, char *argv[]) {
                   << ". Enviando Request..." << std::endl;
 
         SimulatedPacket request;
+
         request.protocol = 67;
+
         std::strncpy(request.src_ip, "0.0.0.0", 16);
         std::strncpy(request.dst_ip, "255.255.255.255", 16);
         std::string msg =
             "DHCP_REQUEST IP:" + offered_ip + " CLIENT:" + pc_name;
         std::strncpy(request.payload, msg.c_str(), 1024);
+
         request.payload_len = msg.length();
 
         net.send_packet(iface, request);
@@ -65,12 +71,16 @@ int main(int argc, char *argv[]) {
         std::cout << "\r[ICMP] Echo Request de " << pkt.src_ip
                   << ". Respondiendo..." << std::endl;
         std::cout << pc_name << "> " << std::flush;
+
         SimulatedPacket reply;
         reply.protocol = 1;
+
         std::strncpy(reply.src_ip, current_ip.c_str(), 16);
         std::strncpy(reply.dst_ip, pkt.src_ip, 16);
         std::strncpy(reply.payload, "ECHO_REPLY", 1024);
+
         reply.payload_len = 10;
+
         net.send_packet(iface, reply);
       } else if (payload.find("ECHO_REPLY") != std::string::npos) {
         std::cout << "\r[ICMP] Reply from " << pkt.src_ip
